@@ -1,0 +1,471 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  DIRECTEUR
+  RESPONSABLE_MARCHE
+  EXPLOITATION
+  QSE
+  LECTURE
+}
+
+enum MarketStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+  CLOSED
+}
+
+enum Criticality {
+  FAIBLE
+  MOYEN
+  FORT
+  CRITIQUE
+}
+
+enum AlertSeverity {
+  MINEUR
+  MAJEUR
+  CRITIQUE
+}
+
+enum AlertStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum ActionStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  BLOCKED
+}
+
+enum ProjectStatus {
+  A_PLANIFIER
+  EN_COURS
+  TERMINE
+  RECEPTIONNE
+  CLOTURE
+}
+
+enum EventType {
+  PENALITE
+  BONUS
+  INCIDENT
+  NON_CONFORMITE
+  INDEMNITE
+}
+
+model User {
+  id           String   @id @default(uuid())
+  firstName    String
+  lastName     String
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  responsibleMarkets Market[]        @relation("MarketResponsible")
+  createdMarkets     Market[]        @relation("MarketCreatedBy")
+  validatedSummaries MarketSummary[]
+  verifiedDocuments  ProjectDocument[]
+  assignedAlerts     Alert[]
+  assignedActions    ActionPlan[]
+  uploadedFiles      MarketFile[]
+  analysisRuns       ContractAnalysisRun[]
+}
+
+model Market {
+  id                        String       @id @default(uuid())
+  marketCode                String       @unique
+  title                     String
+  clientName                String
+  lotName                   String?
+  marketType                String
+  status                    MarketStatus @default(DRAFT)
+  startDate                 DateTime?
+  endDate                   DateTime?
+  firmAmountHt              Decimal?     @db.Decimal(14, 2)
+  optionAmountHt            Decimal?     @db.Decimal(14, 2)
+  renewalCount              Int          @default(0)
+  qualityThreshold          Decimal?     @db.Decimal(5, 2)
+  safetyThreshold           Decimal?     @db.Decimal(5, 2)
+  consumptionThresholdYear1 Decimal?     @db.Decimal(5, 2)
+  consumptionThresholdNext  Decimal?     @db.Decimal(5, 2)
+  receptionThresholdYear1   Decimal?     @db.Decimal(5, 2)
+  receptionThresholdNext    Decimal?     @db.Decimal(5, 2)
+  responsibleUserId         String?
+  createdById               String
+  archivedAt                DateTime?
+  createdAt                 DateTime     @default(now())
+  updatedAt                 DateTime     @updatedAt
+
+  responsibleUser User?  @relation("MarketResponsible", fields: [responsibleUserId], references: [id])
+  createdBy       User   @relation("MarketCreatedBy", fields: [createdById], references: [id])
+
+  files        MarketFile[]
+  analysisRuns ContractAnalysisRun[]
+  summary      MarketSummary?
+  clauses      MarketClause[]
+  kpis         MarketKpi[]
+  obligations  MarketObligation[]
+  projects     Project[]
+  events           MarketEvent[]
+  alerts           Alert[]
+  actions          ActionPlan[]
+  scores           MarketScore[]
+  projectDocuments ProjectDocument[]
+}
+
+model MarketFile {
+  id            String   @id @default(uuid())
+  marketId      String
+  fileName      String
+  filePath      String
+  fileType      String
+  documentType  String
+  versionNumber Int      @default(1)
+  isActive      Boolean  @default(true)
+  uploadedById  String
+  uploadedAt    DateTime @default(now())
+
+  market     Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  uploadedBy User   @relation(fields: [uploadedById], references: [id])
+
+  analysisRuns     ContractAnalysisRun[]
+  projectDocuments ProjectDocument[]
+}
+
+model ContractAnalysisRun {
+  id               String    @id @default(uuid())
+  marketId         String
+  sourceFileId     String?
+  status           String
+  rawExtractedText String?
+  llmPrompt        String?
+  llmRawResponse   Json?
+  startedAt        DateTime  @default(now())
+  completedAt      DateTime?
+  createdById      String
+
+  market     Market      @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  sourceFile MarketFile? @relation(fields: [sourceFileId], references: [id])
+  createdBy  User        @relation(fields: [createdById], references: [id])
+  summary    MarketSummary?
+}
+
+model MarketSummary {
+  id                   String    @id @default(uuid())
+  marketId             String    @unique
+  analysisRunId        String    @unique
+  executiveSummary     String?
+  criticalClauses      String?
+  majorRisks           String?
+  financialMechanisms  String?
+  clarificationsNeeded String?
+  validatedById        String?
+  validatedAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  market      Market              @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  analysisRun ContractAnalysisRun @relation(fields: [analysisRunId], references: [id])
+  validatedBy User?               @relation(fields: [validatedById], references: [id])
+}
+
+model ClauseReference {
+  id                    String      @id @default(uuid())
+  clauseCode            String      @unique
+  articleRef            String?
+  title                 String
+  family                String
+  criticality           Criticality
+  impactType            String?
+  defaultEvidence       String?
+  defaultAlertType      String?
+  defaultPenaltyFormula String?
+  defaultBonusFormula   String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  marketClauses MarketClause[]
+}
+
+model MarketClause {
+  id                String      @id @default(uuid())
+  marketId          String
+  clauseReferenceId String?
+  articleRef        String?
+  title             String
+  description       String?
+  criticality       Criticality
+  isContractual     Boolean     @default(true)
+  requiresFollowUp  Boolean     @default(false)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  market          Market           @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  clauseReference ClauseReference? @relation(fields: [clauseReferenceId], references: [id])
+
+  obligations MarketObligation[]
+}
+
+model KpiReference {
+  id                     String   @id @default(uuid())
+  kpiCode                String   @unique
+  name                   String
+  category               String
+  kpiType                String
+  description            String?
+  formulaLogic           String?
+  unit                   String?
+  frequency              String?
+  defaultGreenThreshold  Decimal? @db.Decimal(10, 2)
+  defaultOrangeThreshold Decimal? @db.Decimal(10, 2)
+  defaultRedThreshold    Decimal? @db.Decimal(10, 2)
+  ownerRole              String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  marketKpis MarketKpi[]
+}
+
+model MarketKpi {
+  id              String   @id @default(uuid())
+  marketId        String
+  kpiReferenceId  String?
+  kpiCode         String
+  name            String
+  category        String
+  kpiType         String
+  description     String?
+  formulaLogic    String?
+  unit            String?
+  frequency       String?
+  greenThreshold  Decimal? @db.Decimal(10, 2)
+  orangeThreshold Decimal? @db.Decimal(10, 2)
+  redThreshold    Decimal? @db.Decimal(10, 2)
+  currentValue    Decimal? @db.Decimal(10, 2)
+  targetValue     Decimal? @db.Decimal(10, 2)
+  ownerUserId     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  market       Market        @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  kpiReference KpiReference? @relation(fields: [kpiReferenceId], references: [id])
+}
+
+model DocumentTypeReference {
+  id                 String      @id @default(uuid())
+  docTypeCode        String      @unique
+  name               String
+  isMandatoryDefault Boolean     @default(false)
+  triggerCondition   String?
+  defaultDueDays     Int?
+  criticality        Criticality
+  ownerRole          String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  projectDocuments ProjectDocument[]
+}
+
+model MarketObligation {
+  id               String      @id @default(uuid())
+  marketId         String
+  clauseId         String?
+  title            String
+  description      String?
+  category         String
+  criticality      Criticality
+  frequency        String?
+  triggerCondition String?
+  expectedEvidence String?
+  dueRule          String?
+  ownerUserId      String?
+  status           String      @default("A_FAIRE")
+  comments         String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  market Market        @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  clause MarketClause? @relation(fields: [clauseId], references: [id])
+}
+
+model Project {
+  id                          String        @id @default(uuid())
+  marketId                    String
+  projectCode                 String
+  orderNumber                 String?
+  siteName                    String?
+  zoneName                    String?
+  plannedDate                 DateTime?
+  performedDate               DateTime?
+  receptionDate               DateTime?
+  isUrgent                    Boolean       @default(false)
+  isUrgentLate                Boolean       @default(false)
+  isDeprogrammed              Boolean       @default(false)
+  deprogrammingResponsibility String?
+  damageCount                 Int           @default(0)
+  topoRequired                Boolean       @default(false)
+  topoDelivered               Boolean       @default(false)
+  aatSigned                   Boolean       @default(false)
+  aatDate                     DateTime?
+  patReceived                 Boolean       @default(false)
+  reelRequired                Boolean       @default(false)
+  reelDelivered               Boolean       @default(false)
+  drumInvolved                Boolean       @default(false)
+  drumRecoveryRequestedAt     DateTime?
+  orderedAmountHt             Decimal       @default(0) @db.Decimal(14, 2)
+  performedAmountHt           Decimal       @default(0) @db.Decimal(14, 2)
+  receivedAmountHt            Decimal       @default(0) @db.Decimal(14, 2)
+  status                      ProjectStatus @default(A_PLANIFIER)
+  createdAt                   DateTime      @default(now())
+  updatedAt                   DateTime      @updatedAt
+
+  market    Market            @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  documents ProjectDocument[]
+  events    MarketEvent[]
+  alerts    Alert[]
+
+  @@unique([marketId, projectCode])
+}
+
+model ProjectDocument {
+  id             String    @id @default(uuid())
+  marketId       String
+  projectId      String
+  documentTypeId String
+  fileId         String?
+  isMandatory    Boolean   @default(false)
+  expectedDate   DateTime?
+  receivedDate   DateTime?
+  isValid        Boolean?
+  verifiedById   String?
+  lateDays       Int?
+  comments       String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  market       Market                @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  project      Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documentType DocumentTypeReference @relation(fields: [documentTypeId], references: [id])
+  file         MarketFile?           @relation(fields: [fileId], references: [id])
+  verifiedBy   User?                 @relation(fields: [verifiedById], references: [id])
+}
+
+model MarketEvent {
+  id               String    @id @default(uuid())
+  marketId         String
+  projectId        String?
+  eventType        EventType
+  eventSubtype     String
+  eventDate        DateTime
+  articleRef       String?
+  amountHt         Decimal   @default(0) @db.Decimal(14, 2)
+  rootCause        String?
+  responsibility   String?
+  correctiveAction String?
+  status           String    @default("OPEN")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  market  Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id])
+}
+
+model Alert {
+  id                String        @id @default(uuid())
+  marketId          String
+  projectId         String?
+  alertType         String
+  severity          AlertSeverity
+  detectedAt        DateTime      @default(now())
+  dueAt             DateTime?
+  cause             String?
+  responsibleUserId String?
+  status            AlertStatus   @default(OPEN)
+  expectedAction    String?
+  closedAt          DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  market          Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  project         Project? @relation(fields: [projectId], references: [id])
+  responsibleUser User?    @relation(fields: [responsibleUserId], references: [id])
+
+  actions ActionPlan[]
+}
+
+model ActionPlan {
+  id                String       @id @default(uuid())
+  marketId          String
+  alertId           String?
+  title             String
+  description       String?
+  priority          String
+  category          String?
+  riskCovered       String?
+  responsibleUserId String?
+  status            ActionStatus @default(TODO)
+  createdAt         DateTime     @default(now())
+  targetDate        DateTime?
+  closedAt          DateTime?
+  expectedResult    String?
+  comments          String?
+
+  market          Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  alert           Alert? @relation(fields: [alertId], references: [id])
+  responsibleUser User?  @relation(fields: [responsibleUserId], references: [id])
+}
+
+model ScoreModel {
+  id        String   @id @default(uuid())
+  name      String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lines  ScoreModelLine[]
+  scores MarketScore[]
+}
+
+model ScoreModelLine {
+  id              String   @id @default(uuid())
+  scoreModelId    String
+  metricCode      String
+  label           String
+  weight          Decimal  @db.Decimal(5, 2)
+  calculationRule String?
+  greenRule       String?
+  orangeRule      String?
+  redRule         String?
+  sortOrder       Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  scoreModel ScoreModel @relation(fields: [scoreModelId], references: [id], onDelete: Cascade)
+}
+
+model MarketScore {
+  id           String   @id @default(uuid())
+  marketId     String
+  scoreModelId String
+  scoreValue   Decimal  @db.Decimal(5, 2)
+  scoreLabel   String
+  calculatedAt DateTime @default(now())
+  details      Json?
+
+  market     Market     @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  scoreModel ScoreModel @relation(fields: [scoreModelId], references: [id])
+}

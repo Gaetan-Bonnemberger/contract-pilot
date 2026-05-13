@@ -1,36 +1,159 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Contract Pilot
 
-## Getting Started
+Application web interne de pilotage contractuel des marchés travaux, maintenance et réseaux.
 
-First, run the development server:
+## Prérequis
+
+- **Node.js 20+**
+- **Docker Desktop** (pour PostgreSQL)
+
+## Démarrage rapide
+
+### 1. Lancer la base de données
+
+```bash
+docker-compose up -d postgres
+```
+
+Attendre ~10 secondes que PostgreSQL soit prêt.
+
+### 2. Installer les dépendances
+
+```bash
+npm install
+```
+
+### 3. Créer et migrer la base
+
+```bash
+npx prisma migrate dev --name init
+```
+
+### 4. Remplir avec les données de démo
+
+```bash
+npm run db:seed
+```
+
+### 5. Lancer l'application
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrir http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Comptes de démonstration
 
-## Learn More
+| Email | Mot de passe | Rôle |
+|-------|-------------|------|
+| admin@comelec.local | password123 | Admin |
+| marche@comelec.local | password123 | Responsable Marché |
+| qse@comelec.local | password123 | QSE |
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Structure du projet
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+  app/
+    (app)/            # Layout applicatif (sidebar + auth)
+      dashboard/      # Dashboard global
+      markets/        # Liste et création marchés
+        [marketId]/   # Fiche marché avec onglets
+          overview/   # Vue d'ensemble + score santé
+          analysis/   # Analyse IA + validation
+          clauses/    # Clauses contractuelles
+          kpis/       # Indicateurs de performance
+          obligations/ # Obligations contractuelles
+          projects/   # Chantiers / commandes
+          documents/  # Documents chantiers
+          alerts/     # Alertes + recalcul
+          actions/    # Plan d'action (kanban)
+          exports/    # Export Excel / PDF
+      settings/       # Référentiels (clauses, KPIs, docs, scoring)
+    api/              # API routes
+    login/            # Page de connexion
+  lib/
+    prisma.ts         # Client Prisma singleton
+    auth.ts           # NextAuth configuration
+    permissions.ts    # Gestion des rôles
+    score.ts          # Calcul du score santé
+    alerts.ts         # Recalcul des alertes
+    llm.ts            # Analyse IA (Claude ou mock)
+    storage.ts        # Stockage fichiers
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Fonctionnalités MVP
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Authentification avec 6 rôles
+- CRUD marchés
+- Upload de documents contractuels
+- Analyse IA (Claude ou mock réaliste)
+- Validation humaine obligatoire de l'analyse
+- Clauses, KPIs, obligations
+- Chantiers avec AAT/PAT/topo/touret
+- Documents par chantier
+- Événements (pénalités, bonus, incidents)
+- Alertes automatiques (8 types)
+- Recalcul des alertes à la demande
+- Score santé pondéré (8 métriques)
+- Dashboard global
+- Plan d'action (kanban)
+- Export Excel multi-onglets
+- Permissions serveur par rôle
+
+---
+
+## Variables d'environnement
+
+```env
+DATABASE_URL=postgresql://contractpilot:contractpilot@localhost:5432/contractpilot
+NEXTAUTH_SECRET=votre-secret-ici
+NEXTAUTH_URL=http://localhost:3000
+STORAGE_PATH=./storage
+ANTHROPIC_API_KEY=           # Optionnel — mock si absent
+```
+
+---
+
+## Déploiement Docker complet
+
+```bash
+docker-compose up -d
+```
+
+Lance PostgreSQL + l'application sur le port 3000.
+
+---
+
+## Alertes générées automatiquement
+
+| Type | Déclencheur | Gravité |
+|------|------------|---------|
+| URGENCE_HORS_DELAI | Intervention urgente en retard | CRITIQUE |
+| TOPO_MANQUANT | Topo requis non remis > 2j | CRITIQUE |
+| TOURET_NON_RECUPERE | AAT + 75j sans récupération touret | MAJEUR |
+| DOCUMENT_MANQUANT | Document obligatoire en retard | MAJEUR/CRITIQUE |
+| NOTE_SECURITE_SOUS_SEUIL | Note sécurité < seuil contractuel | CRITIQUE |
+| NOTE_QUALITE_SOUS_SEUIL | Note qualité < seuil contractuel | MAJEUR |
+
+---
+
+## Score santé — Pondérations
+
+| Métrique | Poids |
+|---------|-------|
+| Délais | 20% |
+| Sécurité | 20% |
+| Qualité | 15% |
+| Documents | 15% |
+| Réception | 10% |
+| Pénalités/Écarts | 10% |
+| Alertes/Risques | 5% |
+| Bonus/Opportunités | 5% |

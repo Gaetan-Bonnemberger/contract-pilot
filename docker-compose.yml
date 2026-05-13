@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: contract-pilot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: contractpilot
+      POSTGRES_PASSWORD: contractpilot
+      POSTGRES_DB: contractpilot
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: contract-pilot-app
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://contractpilot:contractpilot@postgres:5432/contractpilot?schema=public
+      NEXTAUTH_SECRET: contract-pilot-secret-changez-moi-en-prod
+      NEXTAUTH_URL: http://localhost:3000
+      STORAGE_PATH: /app/storage
+    ports:
+      - "3000:3000"
+    volumes:
+      - storage_data:/app/storage
+
+volumes:
+  postgres_data:
+  storage_data:
