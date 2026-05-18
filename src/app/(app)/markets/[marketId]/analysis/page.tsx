@@ -19,7 +19,12 @@ export default async function AnalysisPage({
   const market = await prisma.market.findUnique({
     where: { id: marketId },
     include: {
-      summary: { include: { analysisRun: true, validatedBy: true } },
+      summary: {
+        include: {
+          analysisRun: { select: { status: true, completedAt: true, llmRawResponse: true } },
+          validatedBy: { select: { firstName: true, lastName: true } },
+        },
+      },
       files: { where: { isActive: true, documentType: "CONTRAT" } },
       clauses: true,
       kpis: true,
