@@ -41,6 +41,8 @@ export {
   User,
   Users,
   Shield,
+  ShieldAlert,
+  CheckSquare,
   Zap,
   TrendingUp,
   BarChart2,
