@@ -1,19 +1,35 @@
 version: "3.9"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Contract Pilot — Stack complète (PostgreSQL + Application)
+#
+# Lancement : docker-compose up -d
+# Arrêt     : docker-compose down
+# Logs      : docker-compose logs -f app
+# ─────────────────────────────────────────────────────────────────────────────
+
 services:
+
+  # ── Base de données PostgreSQL ────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: contract-pilot-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: contractpilot
-      POSTGRES_PASSWORD: contractpilot
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-contractpilot}   # Changer en prod via .env
       POSTGRES_DB: contractpilot
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data          # Données persistantes
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contractpilot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # ── Application Next.js ───────────────────────────────────────────────────
   app:
     build:
       context: .
@@ -21,17 +37,35 @@ services:
     container_name: contract-pilot-app
     restart: unless-stopped
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy     # Attend que la DB soit prête
     environment:
-      DATABASE_URL: postgresql://contractpilot:contractpilot@postgres:5432/contractpilot?schema=public
-      NEXTAUTH_SECRET: contract-pilot-secret-changez-moi-en-prod
-      NEXTAUTH_URL: http://localhost:3000
-      STORAGE_PATH: /app/storage
-    ports:
-      - "3000:3000"
-    volumes:
-      - storage_data:/app/storage
+      # Base de données
+      DATABASE_URL: postgresql://contractpilot:${DB_PASSWORD:-contractpilot}@postgres:5432/contractpilot
 
+      # Authentification (OBLIGATOIRE : changer en production)
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-contract-pilot-secret-changez-moi}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+
+      # Stockage des fichiers uploadés
+      STORAGE_PATH: /app/storage
+
+      # IA — Analyse automatique des marchés (optionnel, mock si absent)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
+      # Email — Notifications (optionnel, désactivé si absent)
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - storage_data:/app/storage                        # Fichiers uploadés persistants
+
+# ── Volumes persistants ────────────────────────────────────────────────────
 volumes:
-  postgres_data:
-  storage_data:
+  postgres_data:    # Données PostgreSQL — NE PAS SUPPRIMER
+  storage_data:     # Documents uploadés — NE PAS SUPPRIMER

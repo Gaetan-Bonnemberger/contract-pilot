@@ -1,4 +1,15 @@
-// Service d'analyse IA — utilise Claude si clé dispo, sinon mock réaliste
+/**
+ * llm.ts — Service d'analyse IA des marchés contractuels
+ *
+ * Fonctionnement :
+ *   1. Le responsable upload le PDF du marché via drag & drop (onglet "Analyse IA")
+ *   2. Le serveur extrait le texte du document
+ *   3. Ce service envoie le texte à Claude (Anthropic) et reçoit une analyse structurée
+ *   4. L'analyse est ensuite validée manuellement avant d'être appliquée au marché
+ *
+ * Sans clé API (ANTHROPIC_API_KEY) : retourne un résultat de démonstration réaliste.
+ * Avec clé API : analyse réelle du document fourni.
+ */
 
 export interface AnalysisResult {
   executiveSummary: string;
@@ -175,7 +186,7 @@ Analyse le contrat suivant et extrais les informations structurées demandées.
 ${marketContext ? `Contexte du marché : ${marketContext}` : ""}
 
 CONTRAT :
-${text.substring(0, 15000)}
+${text.substring(0, 100000)}
 
 Réponds UNIQUEMENT en JSON valide avec la structure suivante :
 {
