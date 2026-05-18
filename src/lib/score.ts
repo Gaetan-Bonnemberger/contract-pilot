@@ -230,6 +230,85 @@ export async function calculateMarketScore(
   return { total, label, details };
 }
 
+/** Trouve ou crée le ScoreModel par défaut (nécessaire pour la FK MarketScore) */
+async function getDefaultScoreModel() {
+  let model = await prisma.scoreModel.findFirst({ where: { isDefault: true } });
+  if (!model) {
+    model = await prisma.scoreModel.create({
+      data: { name: "Dynamique", isDefault: true },
+    });
+  }
+  return model;
+}
+
+/**
+ * Persiste un snapshot de score dans MarketScore.
+ * Rate-limit : 1 snapshot par jour et par marché.
+ * Conçu pour être appelé en fire-and-forget (void).
+ */
+export async function saveScoreSnapshot(
+  marketId: string,
+  result: MarketScoreResult
+): Promise<void> {
+  try {
+    const scoreModel = await getDefaultScoreModel();
+
+    // Max 1 snapshot par jour
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const existing = await prisma.marketScore.findFirst({
+      where: { marketId, calculatedAt: { gte: todayStart } },
+    });
+    if (existing) {
+      // Mettre à jour le snapshot existant plutôt que d'en créer un nouveau
+      await prisma.marketScore.update({
+        where: { id: existing.id },
+        data: {
+          scoreValue: result.total,
+          scoreLabel: result.label,
+          details: result.details as object[],
+          calculatedAt: new Date(),
+        },
+      });
+      return;
+    }
+
+    await prisma.marketScore.create({
+      data: {
+        marketId,
+        scoreModelId: scoreModel.id,
+        scoreValue: result.total,
+        scoreLabel: result.label,
+        details: result.details as object[],
+      },
+    });
+  } catch (err) {
+    console.error("[saveScoreSnapshot] Erreur :", err);
+  }
+}
+
+/**
+ * Force la sauvegarde d'un snapshot (ignore le rate-limit quotidien).
+ * Utilisé par l'API POST /scores pour les snapshots manuels.
+ */
+export async function forceScoreSnapshot(
+  marketId: string,
+  result: MarketScoreResult
+): Promise<{ id: string; scoreValue: number; scoreLabel: string; calculatedAt: Date }> {
+  const scoreModel = await getDefaultScoreModel();
+  const row = await prisma.marketScore.create({
+    data: {
+      marketId,
+      scoreModelId: scoreModel.id,
+      scoreValue: result.total,
+      scoreLabel: result.label,
+      details: result.details as object[],
+    },
+    select: { id: true, scoreValue: true, scoreLabel: true, calculatedAt: true },
+  });
+  return { ...row, scoreValue: Number(row.scoreValue) };
+}
+
 export function scoreColor(value: number): string {
   if (value >= 80) return "text-green-600";
   if (value >= 60) return "text-orange-500";

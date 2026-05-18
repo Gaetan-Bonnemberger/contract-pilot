@@ -44,6 +44,7 @@ const tabs = [
   { segment: "avenants", label: "Avenants" },
   { segment: "nc", label: "NC QHSE" },
   { segment: "scoring", label: "Scoring" },
+  { segment: "scores", label: "Historique scores" },
   { segment: "defense", label: "Défense" },
   { segment: "exports", label: "Exports" },
   { segment: "history", label: "Historique" },

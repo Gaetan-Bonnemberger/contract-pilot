@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import { calculateMarketScore, scoreBgColor, scoreColor } from "@/lib/score";
+import { calculateMarketScore, saveScoreSnapshot, scoreBgColor, scoreColor } from "@/lib/score";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,25 +59,13 @@ export default async function MarketOverviewPage({
 
   if (!market) notFound();
 
-  // Calculer le score
+  // Calculer le score et enregistrer un snapshot quotidien (fire-and-forget)
   let score = null;
   try {
     score = await calculateMarketScore(marketId);
-    // Persister le score
-    const scoreModel = await prisma.scoreModel.findFirst({ where: { isDefault: true } });
-    if (scoreModel) {
-      await prisma.marketScore.create({
-        data: {
-          marketId,
-          scoreModelId: scoreModel.id,
-          scoreValue: score.total,
-          scoreLabel: score.label,
-          details: score.details as object[],
-        },
-      });
-    }
+    void saveScoreSnapshot(marketId, score);
   } catch {
-    // Score non calculable
+    // Score non calculable (données insuffisantes)
   }
 
   const totalPenalties = market.events
