@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import {
   Building2,
@@ -9,17 +10,23 @@ import {
   FileText,
   SlidersHorizontal,
   LogOut,
+  ClipboardList,
+  Mail,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/markets", label: "Marchés", icon: FileText },
-  { href: "/settings/scoring", label: "Scoring", icon: SlidersHorizontal },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: null },
+  { href: "/markets", label: "Marchés", icon: FileText, roles: null },
+  { href: "/settings/scoring", label: "Scoring", icon: SlidersHorizontal, roles: null },
+  { href: "/audit", label: "Journal d'audit", icon: ClipboardList, roles: ["ADMIN", "DIRECTEUR"] },
+  { href: "/settings/email", label: "Email", icon: Mail, roles: ["ADMIN"] },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const userRole = session?.user?.role ?? "";
 
   return (
     <aside className="w-52 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
@@ -34,6 +41,7 @@ export function Sidebar() {
       {/* Nav principale */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => {
+          if (item.roles && !item.roles.includes(userRole)) return null;
           const Icon = item.icon;
           const active =
             item.href === "/dashboard"

@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Topbar } from "@/components/layout/topbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus } from "@/components/icons";
 
 export default async function KpiReferencesPage() {
   const kpis = await prisma.kpiReference.findMany({

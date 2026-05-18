@@ -13,7 +13,7 @@ import {
   User,
   FileText,
   ArrowRight,
-} from "lucide-react";
+} from "@/components/icons";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 

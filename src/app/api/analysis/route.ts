@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { analyzeContract } from "@/lib/llm";
 import { PERMISSIONS } from "@/lib/permissions";
 import { saveFile } from "@/lib/storage";
+import { audit } from "@/lib/audit";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -118,6 +119,16 @@ export async function POST(req: Request) {
         },
       });
     }
+
+    await audit({
+      userId: session.user.id,
+      action: "ANALYSIS_STARTED",
+      entityType: "ContractAnalysisRun",
+      entityId: run.id,
+      marketId,
+      label: `Analyse IA lancée${file ? ` — fichier : ${file.name}` : ""}`,
+      details: { fileName: file?.name ?? null, runId: run.id },
+    });
 
     return NextResponse.json({
       runId: run.id,

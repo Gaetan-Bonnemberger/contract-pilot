@@ -1,4 +1,6 @@
-import type { NextAuthConfig } from "next-auth";
+import type { NextAuthConfig, Session } from "next-auth";
+import type { JWT } from "next-auth/jwt";
+import type { NextRequest } from "next/server";
 import type { UserRole } from "@prisma/client";
 
 // Config edge-compatible (sans bcryptjs ni Prisma)
@@ -9,26 +11,26 @@ export const authConfig: NextAuthConfig = {
     signIn: "/login",
   },
   callbacks: {
-    authorized({ auth, request: { nextUrl } }) {
+    authorized({ auth, request }: { auth: Session | null; request: NextRequest }) {
       const isLoggedIn = !!auth?.user;
-      const isLoginPage = nextUrl.pathname === "/login";
+      const isLoginPage = request.nextUrl.pathname === "/login";
 
       if (!isLoggedIn && !isLoginPage) {
-        return Response.redirect(new URL("/login", nextUrl));
+        return Response.redirect(new URL("/login", request.nextUrl));
       }
       if (isLoggedIn && isLoginPage) {
-        return Response.redirect(new URL("/dashboard", nextUrl));
+        return Response.redirect(new URL("/dashboard", request.nextUrl));
       }
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user }: { token: JWT; user?: { id?: string; role?: UserRole } }) {
       if (user) {
-        token.role = (user as { role: UserRole }).role;
-        token.id = user.id;
+        if (user.role !== undefined) token.role = user.role;
+        if (user.id !== undefined) token.id = user.id;
       }
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: { session: Session; token: JWT }) {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as UserRole;

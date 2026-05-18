@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle2, XCircle, Clock } from "lucide-react";
+import { CheckCircle2, XCircle, Clock } from "@/components/icons";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 

@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { CheckCircle2, XCircle, AlertCircle, Plus } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, Plus } from "@/components/icons";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { auth } from "@/lib/auth";

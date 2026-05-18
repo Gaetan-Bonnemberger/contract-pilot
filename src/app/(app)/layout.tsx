@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
-import { SessionProvider } from "next-auth/react";
+import { SessionProvider } from "@/components/layout/session-provider";
 
 export default async function AppLayout({
   children,

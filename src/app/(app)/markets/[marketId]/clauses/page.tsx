@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, CheckCircle2 } from "lucide-react";
+import { Plus, CheckCircle2 } from "@/components/icons";
 
 const CRITICALITY_COLORS: Record<string, string> = {
   CRITIQUE: "bg-red-100 text-red-800",

@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
+import { audit } from "@/lib/audit";
 import type { AnalysisResult } from "@/lib/llm";
 
 export async function POST(
@@ -93,6 +94,16 @@ export async function POST(
       });
     }
   }
+
+  await audit({
+    userId: session.user.id,
+    action: "ANALYSIS_VALIDATED",
+    entityType: "MarketSummary",
+    entityId: summary.id,
+    marketId,
+    label: `Analyse IA validée`,
+    details: { analysisRunId: summary.analysisRunId },
+  });
 
   return NextResponse.json({ success: true });
 }

@@ -12,7 +12,7 @@ import {
   FileText,
   Euro,
   ArrowRight,
-} from "lucide-react";
+} from "@/components/icons";
 import { scoreBgColor } from "@/lib/score";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";

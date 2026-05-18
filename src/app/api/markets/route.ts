@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
+import { audit } from "@/lib/audit";
 import { z } from "zod";
 
 const createMarketSchema = z.object({
@@ -69,6 +70,16 @@ export async function POST(req: Request) {
       responsibleUserId: data.responsibleUserId,
       createdById: session.user.id,
     },
+  });
+
+  await audit({
+    userId: session.user.id,
+    action: "MARKET_CREATED",
+    entityType: "Market",
+    entityId: market.id,
+    marketId: market.id,
+    label: `Marché créé : ${market.marketCode} — ${market.title}`,
+    details: { marketCode: market.marketCode, clientName: market.clientName },
   });
 
   return NextResponse.json(market, { status: 201 });

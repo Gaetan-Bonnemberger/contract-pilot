@@ -1,5 +1,43 @@
 import { prisma } from "@/lib/prisma";
 
+// Poids par défaut (doivent sommer à 100)
+export const DEFAULT_WEIGHTS: Record<string, number> = {
+  DELAIS:    20,
+  SECURITE:  20,
+  QUALITE:   15,
+  DOCUMENTS: 15,
+  RECEPTION: 10,
+  PENALITES: 10,
+  ALERTES:    5,
+  BONUS:      5,
+};
+
+export const METRIC_LABELS: Record<string, string> = {
+  DELAIS:    "Délais",
+  SECURITE:  "Sécurité",
+  QUALITE:   "Qualité",
+  DOCUMENTS: "Documents",
+  RECEPTION: "Réception",
+  PENALITES: "Pénalités",
+  ALERTES:   "Alertes/Risques",
+  BONUS:     "Bonus/Opportunités",
+};
+
+/** Charge les poids d'un marché : surcharges DB + fallback sur les défauts */
+export async function loadWeights(marketId: string): Promise<Record<string, number>> {
+  const overrides = await prisma.marketScoreWeight.findMany({
+    where: { marketId },
+  });
+
+  const weights = { ...DEFAULT_WEIGHTS };
+  for (const row of overrides) {
+    if (weights[row.metricCode] !== undefined) {
+      weights[row.metricCode] = Number(row.weight);
+    }
+  }
+  return weights;
+}
+
 export interface ScoreDetail {
   metricCode: string;
   label: string;
@@ -98,89 +136,80 @@ export async function calculateMarketScore(
     .reduce((sum, e) => sum + Number(e.amountHt), 0);
   const bonusScore = Math.min(totalBonus > 0 ? 100 : 50, 100);
 
-  // --- Pondérations ---
-  const weights = {
-    delais: 20,
-    securite: 20,
-    qualite: 15,
-    documents: 15,
-    reception: 10,
-    penalites: 10,
-    alertes: 5,
-    bonus: 5,
-  };
+  // --- Pondérations (surcharges par marché + défauts) ---
+  const w = await loadWeights(marketId);
 
   const details: ScoreDetail[] = [
     {
       metricCode: "DELAIS",
-      label: "Délais",
-      weight: weights.delais,
+      label: METRIC_LABELS.DELAIS,
+      weight: w.DELAIS,
       rawValue: delaisScore,
       normalizedScore: delaisScore,
-      weightedScore: (delaisScore * weights.delais) / 100,
+      weightedScore: (delaisScore * w.DELAIS) / 100,
       color: delaisScore >= 95 ? "green" : delaisScore >= 80 ? "orange" : "red",
     },
     {
       metricCode: "SECURITE",
-      label: "Sécurité",
-      weight: weights.securite,
+      label: METRIC_LABELS.SECURITE,
+      weight: w.SECURITE,
       rawValue: safetyValue,
       normalizedScore: safetyScore,
-      weightedScore: (safetyScore * weights.securite) / 100,
+      weightedScore: (safetyScore * w.SECURITE) / 100,
       color: safetyScore >= 80 ? "green" : safetyScore >= 60 ? "orange" : "red",
     },
     {
       metricCode: "QUALITE",
-      label: "Qualité",
-      weight: weights.qualite,
+      label: METRIC_LABELS.QUALITE,
+      weight: w.QUALITE,
       rawValue: qualityValue,
       normalizedScore: qualityScore,
-      weightedScore: (qualityScore * weights.qualite) / 100,
+      weightedScore: (qualityScore * w.QUALITE) / 100,
       color: qualityScore >= 80 ? "green" : qualityScore >= 60 ? "orange" : "red",
     },
     {
       metricCode: "DOCUMENTS",
-      label: "Documents",
-      weight: weights.documents,
+      label: METRIC_LABELS.DOCUMENTS,
+      weight: w.DOCUMENTS,
       rawValue: docsScore,
       normalizedScore: docsScore,
-      weightedScore: (docsScore * weights.documents) / 100,
+      weightedScore: (docsScore * w.DOCUMENTS) / 100,
       color: docsScore >= 95 ? "green" : docsScore >= 80 ? "orange" : "red",
     },
     {
       metricCode: "RECEPTION",
-      label: "Réception",
-      weight: weights.reception,
+      label: METRIC_LABELS.RECEPTION,
+      weight: w.RECEPTION,
       rawValue: receptionScore,
       normalizedScore: receptionScore,
-      weightedScore: (receptionScore * weights.reception) / 100,
+      weightedScore: (receptionScore * w.RECEPTION) / 100,
       color: receptionScore >= 70 ? "green" : receptionScore >= 40 ? "orange" : "red",
     },
     {
       metricCode: "PENALITES",
-      label: "Pénalités",
-      weight: weights.penalites,
+      label: METRIC_LABELS.PENALITES,
+      weight: w.PENALITES,
       rawValue: totalPenalties,
       normalizedScore: penaltyScore,
-      weightedScore: (penaltyScore * weights.penalites) / 100,
+      weightedScore: (penaltyScore * w.PENALITES) / 100,
       color: penaltyScore >= 80 ? "green" : penaltyScore >= 50 ? "orange" : "red",
     },
     {
       metricCode: "ALERTES",
-      label: "Alertes/Risques",
-      weight: weights.alertes,
+      label: METRIC_LABELS.ALERTES,
+      weight: w.ALERTES,
       rawValue: criticalAlerts,
       normalizedScore: alertScore,
-      weightedScore: (alertScore * weights.alertes) / 100,
+      weightedScore: (alertScore * w.ALERTES) / 100,
       color: alertScore >= 75 ? "green" : alertScore >= 50 ? "orange" : "red",
     },
     {
       metricCode: "BONUS",
-      label: "Bonus/Opportunités",
-      weight: weights.bonus,
+      label: METRIC_LABELS.BONUS,
+      weight: w.BONUS,
       rawValue: totalBonus,
       normalizedScore: bonusScore,
-      weightedScore: (bonusScore * weights.bonus) / 100,
+      weightedScore: (bonusScore * w.BONUS) / 100,
       color: bonusScore >= 75 ? "green" : bonusScore >= 50 ? "orange" : "red",
     },
   ];

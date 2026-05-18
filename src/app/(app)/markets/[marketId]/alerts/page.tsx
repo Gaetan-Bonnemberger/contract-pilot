@@ -9,7 +9,7 @@ import { fr } from "date-fns/locale";
 import { auth } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/permissions";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus } from "@/components/icons";
 
 const SEVERITY_COLORS: Record<string, string> = {
   CRITIQUE: "bg-red-100 text-red-800 border border-red-200",

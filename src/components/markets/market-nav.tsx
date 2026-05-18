@@ -41,7 +41,12 @@ const tabs = [
   { segment: "documents", label: "Documents" },
   { segment: "alerts", label: "Alertes" },
   { segment: "actions", label: "Actions" },
+  { segment: "avenants", label: "Avenants" },
+  { segment: "nc", label: "NC QHSE" },
+  { segment: "scoring", label: "Scoring" },
+  { segment: "defense", label: "Défense" },
   { segment: "exports", label: "Exports" },
+  { segment: "history", label: "Historique" },
 ];
 
 export function MarketNav({ market }: MarketNavProps) {

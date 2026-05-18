@@ -64,6 +64,81 @@ enum EventType {
   INDEMNITE
 }
 
+enum AuditAction {
+  // Marché
+  MARKET_CREATED
+  MARKET_UPDATED
+  MARKET_ARCHIVED
+  // Alertes
+  ALERT_CLOSED
+  ALERT_RECALCULATED
+  // Analyse IA
+  ANALYSIS_STARTED
+  ANALYSIS_VALIDATED
+  // Documents
+  DOCUMENT_UPLOADED
+  DOCUMENT_VERIFIED
+  // Score
+  SCORE_CALCULATED
+  // Plan d'action
+  ACTION_CREATED
+  ACTION_UPDATED
+  // Événements
+  EVENT_CREATED
+  // Avenants
+  AVENANT_CREATED
+  AVENANT_UPDATED
+  AVENANT_DELETED
+  // Non-conformités QHSE
+  NC_CREATED
+  NC_UPDATED
+  NC_CLOSED
+  // Connexion
+  USER_LOGIN
+}
+
+enum NcType {
+  QUALITE
+  SECURITE
+  ENVIRONNEMENT
+}
+
+enum NcSeverity {
+  MINEURE
+  MAJEURE
+  CRITIQUE
+}
+
+enum NcStatus {
+  OUVERTE
+  EN_COURS
+  CLOTUREE
+}
+
+enum AvenantStatus {
+  EN_COURS
+  SIGNE
+  REFUSE
+}
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id])
+  action     AuditAction
+  entityType String
+  entityId   String
+  marketId   String?
+  market     Market?     @relation(fields: [marketId], references: [id])
+  label      String
+  details    Json?
+  createdAt  DateTime    @default(now())
+
+  @@index([marketId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
 model User {
   id           String   @id @default(uuid())
   firstName    String
@@ -82,7 +157,10 @@ model User {
   assignedAlerts     Alert[]
   assignedActions    ActionPlan[]
   uploadedFiles      MarketFile[]
+  createdAvenants    Avenant[]
+  createdNcs         NonConformite[]
   analysisRuns       ContractAnalysisRun[]
+  auditLogs          AuditLog[]
 }
 
 model Market {
@@ -125,6 +203,11 @@ model Market {
   actions          ActionPlan[]
   scores           MarketScore[]
   projectDocuments ProjectDocument[]
+  auditLogs        AuditLog[]
+  avenants         Avenant[]
+  nonConformites   NonConformite[]
+  scoreWeights     MarketScoreWeight[]
+  defenseNotes     MarketDefenseNote[]
 }
 
 model MarketFile {
@@ -337,6 +420,7 @@ model Project {
   documents ProjectDocument[]
   events    MarketEvent[]
   alerts    Alert[]
+  nonConformites NonConformite[]
 
   @@unique([marketId, projectCode])
 }
@@ -468,4 +552,85 @@ model MarketScore {
 
   market     Market     @relation(fields: [marketId], references: [id], onDelete: Cascade)
   scoreModel ScoreModel @relation(fields: [scoreModelId], references: [id])
+}
+
+model Avenant {
+  id             String        @id @default(uuid())
+  marketId       String
+  avenantNumber  Int
+  signedAt       DateTime?
+  nature         String
+  deltaAmountHt  Decimal?      @db.Decimal(14, 2)
+  deltaDelayDays Int?
+  status         AvenantStatus @default(EN_COURS)
+  notes          String?
+  createdById    String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  market    Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id])
+
+  @@unique([marketId, avenantNumber])
+  @@index([marketId])
+}
+
+model NonConformite {
+  id                String     @id @default(uuid())
+  marketId          String
+  projectId         String?
+  ncType            NcType
+  severity          NcSeverity
+  description       String
+  detectedAt        DateTime
+  rootCause         String?
+  correctiveAction  String?
+  status            NcStatus   @default(OUVERTE)
+  closedAt          DateTime?
+  scoreImpact       Decimal    @default(0) @db.Decimal(5, 2)
+  createdById       String
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  market    Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  project   Project? @relation(fields: [projectId], references: [id])
+  createdBy User     @relation(fields: [createdById], references: [id])
+
+  @@index([marketId])
+  @@index([status])
+}
+
+model MarketScoreWeight {
+  id          String   @id @default(uuid())
+  marketId    String
+  metricCode  String
+  weight      Decimal  @db.Decimal(5, 2)
+  updatedAt   DateTime @updatedAt
+
+  market Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@unique([marketId, metricCode])
+  @@index([marketId])
+}
+
+enum DefenseTrend {
+  HAUSSE
+  STABLE
+  BAISSE
+}
+
+model MarketDefenseNote {
+  id           String        @id @default(uuid())
+  marketId     String
+  metricCode   String
+  justification String?
+  actionPlan   String?
+  trend        DefenseTrend  @default(STABLE)
+  updatedById  String?
+  updatedAt    DateTime      @updatedAt
+
+  market Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@unique([marketId, metricCode])
+  @@index([marketId])
 }
