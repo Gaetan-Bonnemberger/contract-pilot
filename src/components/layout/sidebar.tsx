@@ -12,6 +12,7 @@ import {
   LogOut,
   ClipboardList,
   Mail,
+  Users,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/settings/scoring", label: "Scoring", icon: SlidersHorizontal, roles: null },
   { href: "/audit", label: "Journal d'audit", icon: ClipboardList, roles: ["ADMIN", "DIRECTEUR"] },
   { href: "/settings/email", label: "Email", icon: Mail, roles: ["ADMIN"] },
+  { href: "/settings/users", label: "Utilisateurs", icon: Users, roles: ["ADMIN"] },
 ];
 
 export function Sidebar() {
