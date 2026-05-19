@@ -1,0 +1,95 @@
+version: "3.9"
+
+# =============================================================================
+# docker-compose.prod.yml — Stack PRODUCTION complète
+#
+# Utilisation :
+#   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Différences avec docker-compose.yml (développement) :
+#   - Nginx en reverse proxy avec SSL/HTTPS
+#   - Port 5432 (PostgreSQL) non exposé à l'extérieur
+#   - Logging limité pour économiser l'espace disque
+#   - Healthcheck sur Nginx
+#   - Ressources limitées pour éviter les surcharges
+#
+# Prérequis :
+#   1. Générer les certificats SSL dans nginx/ssl/ (voir nginx/nginx.conf)
+#   2. Remplir le fichier .env avec les vraies valeurs (ne JAMAIS committer ce fichier)
+# =============================================================================
+
+services:
+
+  # ── PostgreSQL (surcharges production) ────────────────────────────────────
+  postgres:
+    ports: []             # Désactiver l'exposition publique du port 5432
+    environment:
+      # Optimisations PostgreSQL pour la production
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=fr_FR.UTF-8"
+    command: >
+      postgres
+      -c max_connections=100
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c log_min_duration_statement=1000
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Application Next.js (surcharges production) ────────────────────────────
+  app:
+    environment:
+      NODE_ENV: production
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+
+  # ── Nginx (reverse proxy + SSL) ───────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: contract-pilot-nginx
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro               # Certificats SSL
+      - nginx_cache:/var/cache/nginx
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+
+# ── Volumes supplémentaires ────────────────────────────────────────────────
+volumes:
+  nginx_cache:

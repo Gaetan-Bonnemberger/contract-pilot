@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { checkRateLimit, getClientIp, RESET_PASSWORD_RATE_LIMIT } from "@/lib/rate-limit";
 
 export async function POST(
   req: Request,
@@ -14,6 +15,18 @@ export async function POST(
   const session = await auth();
   if (!session || session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Réservé aux administrateurs" }, { status: 403 });
+  }
+
+  // Rate limiting : 5 resets par heure par IP
+  const { success: allowed, resetInSeconds } = checkRateLimit(
+    getClientIp(req),
+    RESET_PASSWORD_RATE_LIMIT
+  );
+  if (!allowed) {
+    return NextResponse.json(
+      { error: `Trop de tentatives. Réessayez dans ${Math.ceil(resetInSeconds / 60)} minute(s).` },
+      { status: 429, headers: { "Retry-After": String(resetInSeconds) } }
+    );
   }
 
   const { userId } = await params;

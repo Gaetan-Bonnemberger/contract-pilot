@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force && tsx prisma/seed.ts",
@@ -35,7 +38,7 @@
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^1.14.0",
     "next": "16.2.4",
-    "next-auth": "^5.0.0-beta.31",
+    "next-auth": "5.0.0-beta.31",
     "next-themes": "^0.4.6",
     "nodemailer": "^7.0.13",
     "pdf-parse": "^2.4.5",
@@ -57,11 +60,13 @@
     "@types/nodemailer": "^8.0.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.6",
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.6"
   }
 }
