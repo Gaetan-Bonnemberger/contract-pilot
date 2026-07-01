@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Topbar } from "@/components/layout/topbar";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 export default function NewMarketPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [prefilling, setPrefilling] = useState(false);
+  const [prefillFile, setPrefillFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     marketCode: "",
     title: "",
@@ -32,6 +36,55 @@ export default function NewMarketPage() {
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
+
+  async function handlePrefill(f: File) {
+    setPrefillFile(f);
+    setPrefilling(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      const res = await fetch("/api/markets/prefill", { method: "POST", body: fd });
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error ?? "Échec de la pré-analyse du document");
+        return;
+      }
+
+      if (data.extractedChars === 0 || !data.prefill) {
+        toast.warning(
+          "Document scanné : texte non extractible. Remplissez le formulaire manuellement."
+        );
+        return;
+      }
+
+      const p = data.prefill;
+      setForm((prev) => ({
+        ...prev,
+        marketCode:     p.marketCode   || prev.marketCode,
+        clientName:     p.clientName   || prev.clientName,
+        title:          p.title        || prev.title,
+        lotName:        p.lotName      || prev.lotName,
+        marketType:     p.marketType   || prev.marketType,
+        firmAmountHt:   p.firmAmountHt   != null ? String(p.firmAmountHt)   : prev.firmAmountHt,
+        optionAmountHt: p.optionAmountHt != null ? String(p.optionAmountHt) : prev.optionAmountHt,
+        renewalCount:   p.renewalCount   != null ? String(p.renewalCount)   : prev.renewalCount,
+      }));
+      toast.success("Formulaire pré-rempli — vérifiez et corrigez avant de créer le marché.");
+    } catch {
+      toast.error("Erreur réseau lors de la pré-analyse.");
+    } finally {
+      setPrefilling(false);
+    }
+  }
+
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    if (prefilling) return;
+    const f = e.dataTransfer.files?.[0];
+    if (f) handlePrefill(f);
+  }, [prefilling]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -80,6 +133,67 @@ export default function NewMarketPage() {
               Retour aux marchés
             </Link>
           </Button>
+
+          {/* ── Pré-remplissage IA par dépôt de document ─────────────────── */}
+          <Card className="mb-6 border-blue-100">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-blue-600" />
+                Pré-remplir depuis un document (facultatif)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div
+                className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
+                  prefilling
+                    ? "opacity-60 cursor-not-allowed border-gray-200 bg-gray-50"
+                    : dragging
+                    ? "border-blue-400 bg-blue-50"
+                    : prefillFile
+                    ? "border-green-400 bg-green-50"
+                    : "border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50"
+                }`}
+                onDrop={onDrop}
+                onDragOver={(e) => { e.preventDefault(); if (!prefilling) setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onClick={() => !prefilling && fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.txt,.md"
+                  className="hidden"
+                  disabled={prefilling}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePrefill(f); }}
+                />
+                {prefilling ? (
+                  <div className="space-y-1">
+                    <div className="text-2xl animate-pulse">🤖</div>
+                    <p className="text-sm font-medium text-blue-700">Analyse en cours…</p>
+                    <p className="text-xs text-gray-400">
+                      Le premier appel au modèle local peut prendre 10 à 30 s.
+                    </p>
+                  </div>
+                ) : prefillFile ? (
+                  <div className="space-y-1">
+                    <div className="text-2xl">📄</div>
+                    <p className="text-sm font-medium text-green-800">{prefillFile.name}</p>
+                    <p className="text-xs text-gray-500">Déposez un autre fichier pour recommencer</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="text-2xl text-gray-300">📁</div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Glissez-déposez le CCAP/CCTP (PDF ou TXT)
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      L'IA propose un pré-remplissage — vous validez ensuite chaque champ.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <Card>

@@ -69,6 +69,14 @@ const financialSummarySchema = z.object({
   priceRevisionIndex: z.string().optional(),
 });
 
+const marketIdentificationSchema = z.object({
+  marketCode: z.string().optional(),
+  clientName: z.string().optional(),
+  title: z.string().optional(),
+  lotName: z.string().optional(),
+  marketType: z.string().optional(),
+});
+
 export const analysisResultSchema = z.object({
   executiveSummary: z.string(),
   criticalClauses: z.string(),
@@ -81,6 +89,7 @@ export const analysisResultSchema = z.object({
   extractedPenalties: z.array(extractedPenaltySchema),
   extractedBonuses: z.array(extractedBonusSchema),
   financialSummary: financialSummarySchema,
+  marketIdentification: marketIdentificationSchema.optional(),
 });
 
 // JSON Schema transmis à Ollama pour contraindre la génération (zod 4.4.3)

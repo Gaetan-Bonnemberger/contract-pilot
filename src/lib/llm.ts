@@ -85,6 +85,15 @@ export interface AnalysisResult {
     renewalCount?: number;
     priceRevisionIndex?: string;
   };
+
+  // Identification du marché — pour pré-remplir le formulaire de création (optionnel)
+  marketIdentification?: {
+    marketCode?: string;
+    clientName?: string;
+    title?: string;
+    lotName?: string;
+    marketType?: string;
+  };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -158,6 +167,13 @@ const MOCK_RESULT: AnalysisResult = {
     renewalCount: 0,
     priceRevisionIndex: "Index BT annuel",
   },
+  marketIdentification: {
+    marketCode: "ECB2303550",
+    clientName: "Enedis",
+    title: "Marché-cadre travaux TPE — Aude Ouest",
+    lotName: "Lot 6 Aude Ouest",
+    marketType: "Travaux / Terrassements ponctuels",
+  },
 };
 
 // ── Prompt principal ──────────────────────────────────────────────────────────
@@ -181,6 +197,7 @@ INSTRUCTIONS :
 - Note les références d'articles précises (ex: "Art. 34.6", "§ 3.2", "Article 12")
 - Pour les montants : convertis toujours en nombre (ex: "2 500" et non "2 500 €")
 - Si une information est absente du document, omets le champ (ne pas inventer)
+- Identifie l'entête du marché (marketIdentification) : code/référence, maître d'ouvrage, objet, lot/zone, nature des travaux ; omets tout champ absent
 - Réponds UNIQUEMENT en JSON valide, sans texte avant ni après
 
 DOCUMENT :
@@ -188,6 +205,13 @@ ${truncated}
 
 Réponds avec ce JSON exact (respecte strictement les types) :
 {
+  "marketIdentification": {
+    "marketCode": "Référence/numéro du marché si présent (ex: ECB2303550)",
+    "clientName": "Maître d'ouvrage / client (ex: Enedis)",
+    "title": "Objet du marché",
+    "lotName": "Lot ou zone géographique si présent",
+    "marketType": "Nature des travaux (ex: Travaux / Terrassements ponctuels)"
+  },
   "executiveSummary": "Résumé exécutif en 3-5 phrases : objet, montants, durée, points clés",
   "criticalClauses": "Liste des clauses à fort impact financier ou risque opérationnel, avec références d'articles",
   "majorRisks": "Risques opérationnels et financiers identifiés, classés par criticité",
