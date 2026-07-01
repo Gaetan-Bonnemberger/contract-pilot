@@ -37,6 +37,13 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default("claude-sonnet-4-5"),
 
+  // ── IA locale — Ollama (RGPD : aucune donnée ne sort de la machine) ────────
+  LLM_PROVIDER: z.enum(["anthropic", "ollama", "mock"]).optional(),
+  OLLAMA_BASE_URL: z.string().url().default("http://localhost:11434"),
+  OLLAMA_MODEL: z.string().default("mistral:7b"),
+  OLLAMA_NUM_CTX: z.coerce.number().int().positive().default(16384),
+  OLLAMA_NUM_PREDICT: z.coerce.number().int().positive().default(4096),
+
   // ── Email (optionnel — désactivé si absent) ────────────────────────────────
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().default(587),

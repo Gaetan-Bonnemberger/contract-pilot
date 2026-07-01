@@ -9,7 +9,10 @@
  *
  * Fallback : sans clé ANTHROPIC_API_KEY, retourne un résultat de démonstration.
  * Modèle : claude-sonnet-4-5 (rapide, précis, économique vs Opus)
+ *
+ * Aiguillage LLM_PROVIDER : "ollama" (LLM local, RGPD), "anthropic" (cloud), "mock".
  */
+import { analyzeContractOllama } from "./llm-ollama";
 
 // ── Types exportés ────────────────────────────────────────────────────────────
 
@@ -159,10 +162,10 @@ const MOCK_RESULT: AnalysisResult = {
 
 // ── Prompt principal ──────────────────────────────────────────────────────────
 
-function buildPrompt(text: string, marketContext: string): string {
-  // Tronquer à 120k caractères (≈ 30k tokens environ)
-  const truncated = text.length > 120000
-    ? text.substring(0, 120000) + "\n\n[... document tronqué à 120 000 caractères pour respecter les limites ...]"
+export function buildPrompt(text: string, marketContext: string, maxChars = 120000): string {
+  // Tronquer pour respecter la fenêtre de contexte du modèle
+  const truncated = text.length > maxChars
+    ? text.substring(0, maxChars) + `\n\n[... document tronqué à ${maxChars} caractères pour respecter les limites ...]`
     : text;
 
   return `Tu es un expert juridique et technique spécialisé dans les marchés publics de travaux (BTP, réseaux, maintenance). Tu maîtrises parfaitement le droit de la commande publique français, les CCAP/CCTP, et les mécanismes de pénalités/bonus contractuels.
@@ -257,14 +260,23 @@ export async function analyzeContract(
   text: string,
   marketContext = ""
 ): Promise<AnalysisResult> {
+  const provider = (
+    process.env.LLM_PROVIDER ?? (process.env.ANTHROPIC_API_KEY ? "anthropic" : "mock")
+  ).toLowerCase();
+
+  if (provider === "ollama") {
+    return analyzeContractOllama(text, marketContext);
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
-  if (!apiKey) {
+  if (provider === "mock" || !apiKey) {
     // Mode démonstration — simule un délai réaliste
     await new Promise((r) => setTimeout(r, 1500));
     return MOCK_RESULT;
   }
 
+  // ── Chemin Anthropic existant, INCHANGÉ ──────────────────────────────────
   const model = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5";
   const prompt = buildPrompt(text, marketContext);
 

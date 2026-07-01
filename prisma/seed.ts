@@ -362,7 +362,7 @@ async function main() {
       clientName: "SNCF Réseau",
       lotName: "Nîmes — Montpellier",
       marketType: "Travaux / Signalisation",
-      status: MarketStatus.CLOTURE,
+      status: MarketStatus.CLOSED,
       startDate: new Date("2022-01-10"),
       endDate:   new Date("2025-12-31"),
       firmAmountHt: 490000,
