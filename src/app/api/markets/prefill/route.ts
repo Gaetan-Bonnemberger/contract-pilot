@@ -51,7 +51,12 @@ export async function POST(req: Request) {
   }
 
   try {
+    const t0 = Date.now();
     const result = await analyzeContract(extractedText);
+    const ms = Date.now() - t0;
+    console.log(
+      `[prefill] ${file.name} (${docType}) — ${extractedText.length} caractères extraits — analyse ${(ms / 1000).toFixed(1)}s`
+    );
     return NextResponse.json({
       extractedChars: extractedText.length,
       docType,
