@@ -14,6 +14,8 @@
  * un objet non-appelable -> exception -> texte vide -> l'app croyait le PDF
  * scanne. On utilise donc `new PDFParse({ data: buffer }).getText()`.
  */
+import * as XLSX from "xlsx";
+import mammoth from "mammoth";
 
 /**
  * Extrait le texte brut d'un buffer PDF.
@@ -53,25 +55,73 @@ export async function extractPdfText(buffer: Buffer): Promise<string> {
 }
 
 /**
- * Extrait le texte d'un File (FormData) en fonction du type MIME.
- * Gere PDF, texte brut, et les types non supportes (fallback vide).
+ * Extrait le texte d'un tableur Excel (.xlsx/.xls) : une section par feuille,
+ * chaque feuille convertie en CSV. Ne throw jamais : renvoie un placeholder
+ * explicite en cas d'échec (le reste du dossier doit rester exploitable).
+ */
+function extractXlsxText(buffer: Buffer, fileName: string): string {
+  try {
+    const wb = XLSX.read(buffer, { type: "buffer" });
+    const text = wb.SheetNames
+      .map((name) => `=== Feuille: ${name} ===\n${XLSX.utils.sheet_to_csv(wb.Sheets[name])}`)
+      .join("\n\n");
+    // Nettoyage : lignes vides excessives
+    return text.replace(/\n{4,}/g, "\n\n\n").trim();
+  } catch (err) {
+    console.error("[extractFileText] Echec extraction Excel :", err);
+    return `[Fichier : ${fileName} — échec de l'extraction du tableur Excel]`;
+  }
+}
+
+/**
+ * Extrait le texte d'un document Word. On tente mammoth quelle que soit
+ * l'extension (.docx ET .doc) car des .docx sont parfois mal nommés .doc.
+ * Un vrai .doc binaire ancien (OLE) fera échouer mammoth -> placeholder,
+ * SANS throw.
+ */
+async function extractDocxText(buffer: Buffer): Promise<string> {
+  try {
+    const result = await mammoth.extractRawText({ buffer });
+    return (result.value ?? "").replace(/\n{4,}/g, "\n\n\n").trim();
+  } catch (err) {
+    console.warn("[extractFileText] Echec extraction Word (mammoth) :", err);
+    return "[Fichier .doc ancien non supporté — convertir en .docx ou PDF]";
+  }
+}
+
+/**
+ * Extrait le texte d'un File (FormData) selon son extension / type MIME.
+ * Gère PDF, Excel (.xlsx/.xls), Word (.docx/.doc), texte brut ; placeholder sinon.
  */
 export async function extractFileText(file: File): Promise<string> {
   const buffer = Buffer.from(await file.arrayBuffer());
+  const name = file.name.toLowerCase();
 
-  if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+  // PDF
+  if (file.type === "application/pdf" || name.endsWith(".pdf")) {
     return extractPdfText(buffer);
   }
 
+  // Tableurs Excel (BPU, DQE — porteurs des montants)
+  if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+    return extractXlsxText(buffer, file.name);
+  }
+
+  // Word (.docx, et .doc parfois mal nommés)
+  if (name.endsWith(".docx") || name.endsWith(".doc")) {
+    return extractDocxText(buffer);
+  }
+
+  // Texte brut
   if (
     file.type.startsWith("text/") ||
-    file.name.endsWith(".txt") ||
-    file.name.endsWith(".md")
+    name.endsWith(".txt") ||
+    name.endsWith(".md")
   ) {
     return buffer.toString("utf-8");
   }
 
-  // .doc/.docx — extraction non supportee sans librairie dediee
+  // Type inconnu
   console.warn(`[extractFileText] Type de fichier non supporte : ${file.type}`);
   return `[Fichier : ${file.name} — extraction de texte non disponible pour ce format. Fournissez un PDF ou un fichier texte pour une analyse optimale.]`;
 }
