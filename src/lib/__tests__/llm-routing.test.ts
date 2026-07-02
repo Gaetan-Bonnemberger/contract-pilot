@@ -16,6 +16,7 @@ const VALID_RESULT = {
   extractedPenalties: [],
   extractedBonuses: [],
   financialSummary: {},
+  marketIdentification: {},
 };
 
 describe("analyzeContract — aiguillage provider", () => {

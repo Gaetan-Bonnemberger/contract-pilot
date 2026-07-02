@@ -86,8 +86,9 @@ export interface AnalysisResult {
     priceRevisionIndex?: string;
   };
 
-  // Identification du marché — pour pré-remplir le formulaire de création (optionnel)
-  marketIdentification?: {
+  // Identification du marché — pour pré-remplir le formulaire de création.
+  // Objet OBLIGATOIRE ; chaque champ interne peut être vide si l'info est absente.
+  marketIdentification: {
     marketCode?: string;
     clientName?: string;
     title?: string;
@@ -197,7 +198,7 @@ INSTRUCTIONS :
 - Note les références d'articles précises (ex: "Art. 34.6", "§ 3.2", "Article 12")
 - Pour les montants : convertis toujours en nombre (ex: "2 500" et non "2 500 €")
 - Si une information est absente du document, omets le champ (ne pas inventer)
-- Identifie l'entête du marché (marketIdentification) : code/référence, maître d'ouvrage, objet, lot/zone, nature des travaux ; omets tout champ absent
+- marketIdentification est OBLIGATOIRE dans ta réponse : renvoie TOUJOURS cet objet. Ces informations (code/référence du marché, maître d'ouvrage/client, objet du marché, lot/zone, nature des travaux) figurent quasiment toujours en PREMIÈRE PAGE du document (en-tête, objet du marché, maître d'ouvrage) : extrais-les EN PRIORITÉ. Mets une chaîne vide "" pour un champ UNIQUEMENT si l'information est réellement absente du document — sans jamais l'inventer.
 - Réponds UNIQUEMENT en JSON valide, sans texte avant ni après
 
 DOCUMENT :

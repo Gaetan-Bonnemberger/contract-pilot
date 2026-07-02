@@ -49,7 +49,7 @@ describe("mapAnalysisToPrefill", () => {
   });
 
   it("renvoie des valeurs par défaut quand les blocs sont absents", () => {
-    const empty = { ...BASE_RESULT, marketIdentification: undefined, financialSummary: {} } as AnalysisResult;
+    const empty = { ...BASE_RESULT, marketIdentification: {}, financialSummary: {} } as AnalysisResult;
     expect(mapAnalysisToPrefill(empty)).toEqual({
       marketCode: "", clientName: "", title: "", lotName: "", marketType: "",
       firmAmountHt: null, optionAmountHt: null, renewalCount: null,

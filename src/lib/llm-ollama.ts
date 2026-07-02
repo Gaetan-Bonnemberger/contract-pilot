@@ -89,7 +89,7 @@ export const analysisResultSchema = z.object({
   extractedPenalties: z.array(extractedPenaltySchema),
   extractedBonuses: z.array(extractedBonusSchema),
   financialSummary: financialSummarySchema,
-  marketIdentification: marketIdentificationSchema.optional(),
+  marketIdentification: marketIdentificationSchema,
 });
 
 // JSON Schema transmis à Ollama pour contraindre la génération (zod 4.4.3)
