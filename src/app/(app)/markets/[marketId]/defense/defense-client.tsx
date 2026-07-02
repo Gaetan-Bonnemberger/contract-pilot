@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import type { MarketScoreResult } from "@/lib/score";
+import { marketCodeLabel } from "@/lib/market-code";
 
 type Trend = "HAUSSE" | "STABLE" | "BAISSE";
 
@@ -14,7 +15,7 @@ interface NoteState {
 
 interface MarketMeta {
   id: string;
-  marketCode: string;
+  marketCode: string | null;
   title: string;
   clientName: string;
   responsible: string | null;
@@ -132,7 +133,7 @@ export function DefenseClient({ market, scoreResult, metricLabels, initialNotes,
                 </div>
                 <h1 className="text-2xl font-bold text-gray-900">{market.title}</h1>
                 <p className="text-gray-500 text-sm mt-0.5">
-                  <span className="font-mono text-blue-700">{market.marketCode}</span>
+                  <span className="font-mono text-blue-700">{marketCodeLabel(market.marketCode)}</span>
                   {" · "}{market.clientName}
                 </p>
               </div>

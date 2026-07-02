@@ -15,7 +15,7 @@ import type { AnalysisResult } from "@/lib/llm";
 interface AnalysisPanelProps {
   market: {
     id: string;
-    marketCode: string;
+    marketCode: string | null;
     summary: {
       executiveSummary: string | null;
       criticalClauses: string | null;

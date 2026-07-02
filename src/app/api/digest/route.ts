@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { dailyDigestEmail } from "@/lib/email-templates";
+import { marketCodeLabel } from "@/lib/market-code";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -51,7 +52,7 @@ export async function POST(_req: Request) {
       const score = latestScore ? Number(latestScore.scoreValue) : null;
 
       return {
-        marketCode: m.marketCode,
+        marketCode: marketCodeLabel(m.marketCode),
         marketTitle: m.title,
         marketId: m.id,
         criticalAlerts,

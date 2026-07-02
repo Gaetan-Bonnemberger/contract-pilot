@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
 import { audit } from "@/lib/audit";
+import { marketCodeLabel } from "@/lib/market-code";
 
 export async function PATCH(
   _req: Request,
@@ -31,7 +32,7 @@ export async function PATCH(
     entityType: "Alert",
     entityId: alertId,
     marketId,
-    label: `Alerte clôturée : ${alert.alertType.replace(/_/g, " ")} sur ${alert.market.marketCode}`,
+    label: `Alerte clôturée : ${alert.alertType.replace(/_/g, " ")} sur ${marketCodeLabel(alert.market.marketCode)}`,
     details: { alertType: alert.alertType, severity: alert.severity },
   });
 

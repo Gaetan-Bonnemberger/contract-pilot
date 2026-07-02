@@ -15,6 +15,7 @@ import {
   ShieldAlert,
 } from "@/components/icons";
 import { scoreBgColor, scoreColor } from "@/lib/score";
+import { marketCodeLabel } from "@/lib/market-code";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -404,7 +405,7 @@ export default async function DashboardPage() {
                                 {hasCriticalAlert && (
                                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
                                 )}
-                                <span className="font-mono text-xs text-blue-700">{market.marketCode}</span>
+                                <span className="font-mono text-xs text-blue-700">{marketCodeLabel(market.marketCode)}</span>
                               </div>
                             </td>
                             <td className="px-4 py-2.5">
@@ -521,7 +522,7 @@ export default async function DashboardPage() {
                         </span>
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {alert.market.marketCode}
+                        {marketCodeLabel(alert.market.marketCode)}
                         {alert.project && ` · ${alert.project.projectCode}`}
                       </p>
                     </Link>
@@ -556,7 +557,7 @@ export default async function DashboardPage() {
                           {nc.severity}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5">{nc.market.marketCode} · {nc.ncType}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{marketCodeLabel(nc.market.marketCode)} · {nc.ncType}</p>
                     </Link>
                   ))
                 )}
@@ -613,7 +614,7 @@ export default async function DashboardPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-gray-400">{action.market.marketCode}</span>
+                        <span className="text-xs text-gray-400">{marketCodeLabel(action.market.marketCode)}</span>
                         <span className="text-xs text-red-600 font-medium">+{daysLate}j de retard</span>
                       </div>
                     </Link>

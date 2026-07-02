@@ -3,10 +3,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/permissions";
 import { audit } from "@/lib/audit";
+import { marketCodeLabel } from "@/lib/market-code";
 import { z } from "zod";
 
 const createMarketSchema = z.object({
-  marketCode: z.string().min(1),
+  marketCode: z.string().optional(),
   title: z.string().min(1),
   clientName: z.string().min(1),
   lotName: z.string().optional(),
@@ -55,7 +56,7 @@ export async function POST(req: Request) {
 
   const market = await prisma.market.create({
     data: {
-      marketCode: data.marketCode,
+      marketCode: data.marketCode?.trim() || null,   // "" ou absent → null
       title: data.title,
       clientName: data.clientName,
       lotName: data.lotName,
@@ -78,7 +79,7 @@ export async function POST(req: Request) {
     entityType: "Market",
     entityId: market.id,
     marketId: market.id,
-    label: `Marché créé : ${market.marketCode} — ${market.title}`,
+    label: `Marché créé : ${marketCodeLabel(market.marketCode)} — ${market.title}`,
     details: { marketCode: market.marketCode, clientName: market.clientName },
   });
 

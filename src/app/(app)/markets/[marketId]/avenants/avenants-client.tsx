@@ -23,7 +23,7 @@ interface Avenant {
 
 interface Market {
   id: string;
-  marketCode: string;
+  marketCode: string | null;
   title: string;
   firmAmountHt: number | null;
 }

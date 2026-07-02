@@ -106,7 +106,7 @@ export async function POST(req: Request) {
     }
 
     // ── Étape 2 : analyse IA ───────────────────────────────────────────────
-    const marketContext = `Type : ${market.marketType} | Client : ${market.clientName} | Marché : ${market.title} (${market.marketCode})`;
+    const marketContext = `Type : ${market.marketType} | Client : ${market.clientName} | Marché : ${market.title} (${market.marketCode ?? "code non attribué"})`;
 
     const result = await analyzeContract(
       extractedText || `Marché ${market.title} — ${market.clientName}`,

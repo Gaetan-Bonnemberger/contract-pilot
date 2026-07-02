@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { marketCodeLabel } from "@/lib/market-code";
 
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: "bg-gray-100 text-gray-600",
@@ -24,7 +25,7 @@ const STATUS_LABELS: Record<string, string> = {
 interface MarketNavProps {
   market: {
     id: string;
-    marketCode: string;
+    marketCode: string | null;
     title: string;
     clientName: string;
     status: string;
@@ -68,7 +69,7 @@ export function MarketNav({ market }: MarketNavProps) {
           <div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-sm text-blue-700 font-medium">
-                {market.marketCode}
+                {marketCodeLabel(market.marketCode)}
               </span>
               <span
                 className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[market.status]}`}

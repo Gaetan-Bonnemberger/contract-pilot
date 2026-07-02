@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ArrowRight, Plus } from "@/components/icons";
 import { scoreBgColor } from "@/lib/score";
 import { PERMISSIONS } from "@/lib/permissions";
+import { marketCodeLabel } from "@/lib/market-code";
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Brouillon",
@@ -108,7 +109,7 @@ export default async function MarketsPage() {
                   return (
                     <tr key={market.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-mono text-xs text-blue-700 font-medium">
-                        {market.marketCode}
+                        {marketCodeLabel(market.marketCode)}
                       </td>
                       <td className="px-4 py-3 text-gray-700">{market.clientName}</td>
                       <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate">

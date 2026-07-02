@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as XLSX from "xlsx";
+import { marketCodeLabel } from "@/lib/market-code";
 
 export async function GET(
   req: Request,
@@ -39,7 +40,7 @@ export async function GET(
 
     // Onglet Marché
     const marketData = [
-      ["Code", market.marketCode],
+      ["Code", marketCodeLabel(market.marketCode)],
       ["Titre", market.title],
       ["Client", market.clientName],
       ["Lot", market.lotName ?? ""],
@@ -166,7 +167,7 @@ export async function GET(
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="marche-${market.marketCode}.xlsx"`,
+        "Content-Disposition": `attachment; filename="marche-${market.marketCode ?? "sans-code"}.xlsx"`,
       },
     });
   }
@@ -175,7 +176,7 @@ export async function GET(
   const text = `
 CONTRACT PILOT — SYNTHÈSE MARCHÉ
 =================================
-Code: ${market.marketCode}
+Code: ${marketCodeLabel(market.marketCode)}
 Titre: ${market.title}
 Client: ${market.clientName}
 Statut: ${market.status}
@@ -189,7 +190,7 @@ ACTIONS EN COURS: ${market.actions.filter((a) => a.status !== "DONE").length}
   return new NextResponse(text, {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
-      "Content-Disposition": `attachment; filename="synthese-${market.marketCode}.txt"`,
+      "Content-Disposition": `attachment; filename="synthese-${market.marketCode ?? "sans-code"}.txt"`,
     },
   });
 }

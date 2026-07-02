@@ -6,6 +6,7 @@ import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { criticalAlertEmail } from "@/lib/email-templates";
+import { marketCodeLabel } from "@/lib/market-code";
 
 export async function POST(
   _req: Request,
@@ -67,10 +68,10 @@ async function notifyCriticalAlerts(marketId: string) {
 
     await sendEmail({
       to: market.responsibleUser.email,
-      subject: `🚨 ${market.alerts.length} alerte(s) critique(s) — ${market.marketCode}`,
+      subject: `🚨 ${market.alerts.length} alerte(s) critique(s) — ${marketCodeLabel(market.marketCode)}`,
       html: criticalAlertEmail({
         recipientName: `${market.responsibleUser.firstName} ${market.responsibleUser.lastName}`,
-        marketCode: market.marketCode,
+        marketCode: marketCodeLabel(market.marketCode),
         marketTitle: market.title,
         marketId: market.id,
         alerts: market.alerts.map((a) => ({

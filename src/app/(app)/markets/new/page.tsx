@@ -205,14 +205,13 @@ export default function NewMarketPage() {
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label htmlFor="marketCode">Code marché *</Label>
+                  <Label htmlFor="marketCode">Code marché</Label>
                   <Input
                     id="marketCode"
                     name="marketCode"
                     value={form.marketCode}
                     onChange={handleChange}
                     placeholder="ECB2303550"
-                    required
                   />
                 </div>
                 <div className="space-y-1">
