@@ -12,6 +12,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { analyzeContract } from "@/lib/llm";
 import { extractFileText } from "@/lib/pdf";
 import { mapAnalysisToPrefill } from "./prefill-mapping";
+import { detectMarketDocType } from "@/lib/market-doc-type";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -29,6 +30,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Aucun fichier fourni" }, { status: 400 });
   }
 
+  const docType = detectMarketDocType(file.name);
+
   // Extraction : un échec TECHNIQUE (module, PDF corrompu…) doit remonter en 500
   // explicite, à ne pas confondre avec un PDF scanné (texte réellement absent).
   let extractedText: string;
@@ -44,13 +47,14 @@ export async function POST(req: Request) {
 
   // PDF réellement sans texte (scanné) : on prévient l'UI sans lancer l'analyse.
   if (!extractedText || extractedText.trim().length === 0) {
-    return NextResponse.json({ extractedChars: 0, prefill: null });
+    return NextResponse.json({ extractedChars: 0, docType, prefill: null });
   }
 
   try {
     const result = await analyzeContract(extractedText);
     return NextResponse.json({
       extractedChars: extractedText.length,
+      docType,
       prefill: mapAnalysisToPrefill(result),
     });
   } catch (error) {

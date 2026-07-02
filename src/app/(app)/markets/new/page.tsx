@@ -10,12 +10,23 @@ import { Topbar } from "@/components/layout/topbar";
 import { toast } from "sonner";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { detectMarketDocType, type MarketDocType } from "@/lib/market-doc-type";
+import { mergePrefills, type PrefillResult } from "@/app/api/markets/prefill/prefill-mapping";
+
+type FileStatus = { name: string; docType: MarketDocType; status: "pending" | "running" | "ok" | "skipped" };
+
+const DOC_TYPE_LABELS: Record<MarketDocType, string> = {
+  ccap: "CCAP", cctp: "CCTP", rc: "RC", ae: "Acte d'engagement", bpu: "BPU", dqe: "DQE", unknown: "Document",
+};
+const STATUS_ICON: Record<FileStatus["status"], string> = { pending: "⏳", running: "🔄", ok: "✅", skipped: "⏭️" };
+const STATUS_LABEL: Record<FileStatus["status"], string> = { pending: "en attente", running: "en cours…", ok: "ok", skipped: "ignoré" };
 
 export default function NewMarketPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [prefilling, setPrefilling] = useState(false);
-  const [prefillFile, setPrefillFile] = useState<File | null>(null);
+  const [fileStatuses, setFileStatuses] = useState<FileStatus[]>([]);
+  const [progress, setProgress] = useState<{ current: number; total: number; label: string } | null>(null);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -38,55 +49,71 @@ export default function NewMarketPage() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
-  async function handlePrefill(f: File) {
-    setPrefillFile(f);
-    setPrefilling(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", f);
-      const res = await fetch("/api/markets/prefill", { method: "POST", body: fd });
-      const data = await res.json();
-
-      if (!res.ok) {
-        toast.error(data.error ?? "Échec de la pré-analyse du document");
-        return;
-      }
-
-      if (data.extractedChars === 0 || !data.prefill) {
-        toast.warning(
-          "Document scanné : texte non extractible. Remplissez le formulaire manuellement."
-        );
-        return;
-      }
-
-      const p = data.prefill;
-      setForm((prev) => ({
-        ...prev,
-        marketCode:     p.marketCode   || prev.marketCode,
-        clientName:     p.clientName   || prev.clientName,
-        title:          p.title        || prev.title,
-        lotName:        p.lotName      || prev.lotName,
-        marketType:     p.marketType   || prev.marketType,
-        firmAmountHt:   p.firmAmountHt   != null ? String(p.firmAmountHt)   : prev.firmAmountHt,
-        optionAmountHt: p.optionAmountHt != null ? String(p.optionAmountHt) : prev.optionAmountHt,
-        renewalCount:   p.renewalCount   != null ? String(p.renewalCount)   : prev.renewalCount,
-      }));
-      toast.success("Formulaire pré-rempli — vérifiez et corrigez avant de créer le marché.");
-      // Amène les champs pré-remplis + le bouton « Créer le marché » à l'écran.
-      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch {
-      toast.error("Erreur réseau lors de la pré-analyse.");
-    } finally {
-      setPrefilling(false);
+  async function analyzeOne(file: File): Promise<PrefillResult | null> {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/markets/prefill", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? `Échec de l'analyse de ${file.name}`);
+      return null;
     }
+    if (data.extractedChars === 0 || !data.prefill) return null; // scanné / vide → ignoré
+    return { docType: data.docType as MarketDocType, prefill: data.prefill };
+  }
+
+  async function handlePrefillFiles(fileList: File[]) {
+    if (prefilling || fileList.length === 0) return;
+    setPrefilling(true);
+    const statuses: FileStatus[] = fileList.map((f) => ({
+      name: f.name, docType: detectMarketDocType(f.name), status: "pending",
+    }));
+    setFileStatuses(statuses);
+
+    const results: PrefillResult[] = [];
+    for (let i = 0; i < fileList.length; i++) {          // SÉQUENTIEL (un seul modèle Ollama)
+      const f = fileList[i];
+      const dt = statuses[i].docType;
+      setProgress({ current: i + 1, total: fileList.length, label: dt !== "unknown" ? DOC_TYPE_LABELS[dt] : f.name });
+      setFileStatuses((prev) => prev.map((s, j) => (j === i ? { ...s, status: "running" } : s)));
+
+      let result: PrefillResult | null = null;
+      try { result = await analyzeOne(f); } catch { result = null; }  // un échec n'interrompt pas la série
+      if (result) results.push(result);
+      setFileStatuses((prev) => prev.map((s, j) => (j === i ? { ...s, status: result ? "ok" : "skipped" } : s)));
+    }
+
+    setProgress(null);
+    setPrefilling(false);
+
+    if (results.length === 0) {
+      toast.warning("Aucun document exploitable (scannés ou en échec). Remplissez le formulaire manuellement.");
+      return;
+    }
+
+    const merged = mergePrefills(results);
+    setForm((prev) => ({
+      ...prev,
+      marketCode:     merged.marketCode   || prev.marketCode,
+      clientName:     merged.clientName   || prev.clientName,
+      title:          merged.title        || prev.title,
+      lotName:        merged.lotName       || prev.lotName,
+      marketType:     merged.marketType   || prev.marketType,
+      firmAmountHt:   merged.firmAmountHt   != null ? String(merged.firmAmountHt)   : prev.firmAmountHt,
+      optionAmountHt: merged.optionAmountHt != null ? String(merged.optionAmountHt) : prev.optionAmountHt,
+      renewalCount:   merged.renewalCount   != null ? String(merged.renewalCount)   : prev.renewalCount,
+    }));
+    toast.success(`${results.length} document(s) analysé(s) — formulaire pré-rempli, vérifiez avant de créer.`);
+    // Amène les champs pré-remplis + le bouton « Créer le marché » à l'écran.
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
     if (prefilling) return;
-    const f = e.dataTransfer.files?.[0];
-    if (f) handlePrefill(f);
+    const files = Array.from(e.dataTransfer.files ?? []);
+    if (files.length) handlePrefillFiles(files);
   }, [prefilling]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -145,14 +172,14 @@ export default function NewMarketPage() {
                 Pré-remplir depuis un document (facultatif)
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               <div
                 className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
                   prefilling
                     ? "opacity-60 cursor-not-allowed border-gray-200 bg-gray-50"
                     : dragging
                     ? "border-blue-400 bg-blue-50"
-                    : prefillFile
+                    : fileStatuses.length > 0
                     ? "border-green-400 bg-green-50"
                     : "border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50"
                 }`}
@@ -164,37 +191,60 @@ export default function NewMarketPage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.txt,.md"
+                  multiple
+                  accept=".pdf,.txt,.md,.docx,.doc,.xlsx,.xls"
                   className="hidden"
                   disabled={prefilling}
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePrefill(f); }}
+                  onChange={(e) => { const fs = Array.from(e.target.files ?? []); if (fs.length) handlePrefillFiles(fs); }}
                 />
                 {prefilling ? (
                   <div className="space-y-1">
                     <div className="text-2xl animate-pulse">🤖</div>
-                    <p className="text-sm font-medium text-blue-700">Analyse en cours…</p>
+                    <p className="text-sm font-medium text-blue-700">Analyse séquentielle en cours…</p>
                     <p className="text-xs text-gray-400">
-                      Le premier appel au modèle local peut prendre 10 à 30 s.
+                      Un document à la fois (modèle local). 10 à 30 s par pièce au premier appel.
                     </p>
-                  </div>
-                ) : prefillFile ? (
-                  <div className="space-y-1">
-                    <div className="text-2xl">📄</div>
-                    <p className="text-sm font-medium text-green-800">{prefillFile.name}</p>
-                    <p className="text-xs text-gray-500">Déposez un autre fichier pour recommencer</p>
                   </div>
                 ) : (
                   <div className="space-y-1">
                     <div className="text-2xl text-gray-300">📁</div>
                     <p className="text-sm font-medium text-gray-600">
-                      Glissez-déposez le CCAP/CCTP (PDF ou TXT)
+                      Glissez-déposez les pièces du dossier (CCAP, CCTP, AE, BPU, DQE…)
                     </p>
                     <p className="text-xs text-gray-400">
-                      L'IA propose un pré-remplissage — vous validez ensuite chaque champ.
+                      PDF, Word, Excel ou TXT — plusieurs fichiers acceptés. Vous validez ensuite chaque champ.
                     </p>
                   </div>
                 )}
               </div>
+
+              {progress && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Analyse {progress.current}/{progress.total} : {progress.label}…</span>
+                    <span>{Math.round((progress.current / progress.total) * 100)}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 transition-all"
+                      style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {fileStatuses.length > 0 && (
+                <ul className="space-y-1">
+                  {fileStatuses.map((s, i) => (
+                    <li key={i} className="flex items-center gap-2 text-xs">
+                      <span>{STATUS_ICON[s.status]}</span>
+                      <span className="font-medium text-gray-700 truncate max-w-[220px]">{s.name}</span>
+                      <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">{DOC_TYPE_LABELS[s.docType]}</span>
+                      <span className="ml-auto text-gray-400">{STATUS_LABEL[s.status]}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
 

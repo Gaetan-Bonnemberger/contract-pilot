@@ -11,7 +11,7 @@ vi.mock("@/lib/pdf", () => ({ extractFileText: vi.fn() }));
 vi.mock("@/lib/llm", () => ({ analyzeContract: vi.fn() }));
 
 import { POST } from "@/app/api/markets/prefill/route";
-import { mapAnalysisToPrefill } from "@/app/api/markets/prefill/prefill-mapping";
+import { mapAnalysisToPrefill, mergePrefills, type MarketPrefill } from "@/app/api/markets/prefill/prefill-mapping";
 import { auth } from "@/lib/auth";
 import { extractFileText } from "@/lib/pdf";
 import { analyzeContract } from "@/lib/llm";
@@ -57,6 +57,40 @@ describe("mapAnalysisToPrefill", () => {
   });
 });
 
+describe("mergePrefills", () => {
+  const P = (over: Partial<MarketPrefill>): MarketPrefill => ({
+    marketCode: "", clientName: "", title: "", lotName: "", marketType: "",
+    firmAmountHt: null, optionAmountHt: null, renewalCount: null, ...over,
+  });
+
+  it("le montant vient du DQE même si un AE est fourni", () => {
+    const merged = mergePrefills([
+      { docType: "ae",  prefill: P({ marketCode: "AE-1", firmAmountHt: 100 }) },
+      { docType: "dqe", prefill: P({ firmAmountHt: 999 }) },
+    ]);
+    expect(merged.firmAmountHt).toBe(999);   // dqe > ae pour les montants
+    expect(merged.marketCode).toBe("AE-1");  // ae fournit le code, dqe non
+  });
+
+  it("l'identification vient du CCAP", () => {
+    const merged = mergePrefills([
+      { docType: "cctp", prefill: P({ marketCode: "CCTP-X", title: "T-cctp" }) },
+      { docType: "ccap", prefill: P({ marketCode: "CCAP-1", title: "T-ccap" }) },
+    ]);
+    expect(merged.marketCode).toBe("CCAP-1");
+    expect(merged.title).toBe("T-ccap");
+  });
+
+  it("n'écrase jamais une valeur non-vide par une vide", () => {
+    const merged = mergePrefills([
+      { docType: "ccap", prefill: P({ clientName: "Enedis" }) },
+      { docType: "ae",   prefill: P({ clientName: "" }) },
+      { docType: "dqe",  prefill: null },
+    ]);
+    expect(merged.clientName).toBe("Enedis");
+  });
+});
+
 describe("POST /api/markets/prefill", () => {
   it("401 si non authentifié", async () => {
     vi.mocked(auth).mockResolvedValueOnce(null as never);
@@ -70,7 +104,7 @@ describe("POST /api/markets/prefill", () => {
     const res = await POST(fileRequest());
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body).toEqual({ extractedChars: 0, prefill: null });
+    expect(body).toEqual({ extractedChars: 0, docType: "ccap", prefill: null });
     expect(analyzeContract).not.toHaveBeenCalled();
   });
 
@@ -91,6 +125,7 @@ describe("POST /api/markets/prefill", () => {
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.extractedChars).toBe("texte du marché".length);
+    expect(body.docType).toBe("ccap");
     expect(body.prefill.marketCode).toBe("ECB2303550");
     expect(body.prefill.firmAmountHt).toBe(220000);
     expect(analyzeContract).toHaveBeenCalledOnce();
