@@ -18,6 +18,7 @@ export default function NewMarketPage() {
   const [prefillFile, setPrefillFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [form, setForm] = useState({
     marketCode: "",
     title: "",
@@ -71,6 +72,8 @@ export default function NewMarketPage() {
         renewalCount:   p.renewalCount   != null ? String(p.renewalCount)   : prev.renewalCount,
       }));
       toast.success("Formulaire pré-rempli — vérifiez et corrigez avant de créer le marché.");
+      // Amène les champs pré-remplis + le bouton « Créer le marché » à l'écran.
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch {
       toast.error("Erreur réseau lors de la pré-analyse.");
     } finally {
@@ -195,7 +198,7 @@ export default function NewMarketPage() {
             </CardContent>
           </Card>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Informations générales</CardTitle>
