@@ -9,35 +9,9 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/lib/permissions";
-import { analyzeContract, type AnalysisResult } from "@/lib/llm";
+import { analyzeContract } from "@/lib/llm";
 import { extractFileText } from "@/lib/pdf";
-
-export interface MarketPrefill {
-  marketCode: string;
-  clientName: string;
-  title: string;
-  lotName: string;
-  marketType: string;
-  firmAmountHt: number | null;
-  optionAmountHt: number | null;
-  renewalCount: number | null;
-}
-
-/** Mappe le résultat d'analyse vers les champs du formulaire de création. */
-export function mapAnalysisToPrefill(result: AnalysisResult): MarketPrefill {
-  const id = result.marketIdentification ?? {};
-  const fin = result.financialSummary ?? {};
-  return {
-    marketCode: id.marketCode ?? "",
-    clientName: id.clientName ?? "",
-    title: id.title ?? "",
-    lotName: id.lotName ?? "",
-    marketType: id.marketType ?? "",
-    firmAmountHt: fin.firmAmountHt ?? null,
-    optionAmountHt: fin.optionAmountHt ?? null,
-    renewalCount: fin.renewalCount ?? null,
-  };
-}
+import { mapAnalysisToPrefill } from "./prefill-mapping";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -55,9 +29,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Aucun fichier fourni" }, { status: 400 });
   }
 
-  const extractedText = await extractFileText(file);
+  // Extraction : un échec TECHNIQUE (module, PDF corrompu…) doit remonter en 500
+  // explicite, à ne pas confondre avec un PDF scanné (texte réellement absent).
+  let extractedText: string;
+  try {
+    extractedText = await extractFileText(file);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "erreur inconnue";
+    return NextResponse.json(
+      { error: `Échec technique de l'extraction : ${msg}` },
+      { status: 500 }
+    );
+  }
 
-  // PDF scanné / texte non extractible : on prévient l'UI sans lancer l'analyse.
+  // PDF réellement sans texte (scanné) : on prévient l'UI sans lancer l'analyse.
   if (!extractedText || extractedText.trim().length === 0) {
     return NextResponse.json({ extractedChars: 0, prefill: null });
   }

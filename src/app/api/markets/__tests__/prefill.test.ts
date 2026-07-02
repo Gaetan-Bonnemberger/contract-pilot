@@ -10,7 +10,8 @@ vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/pdf", () => ({ extractFileText: vi.fn() }));
 vi.mock("@/lib/llm", () => ({ analyzeContract: vi.fn() }));
 
-import { POST, mapAnalysisToPrefill } from "@/app/api/markets/prefill/route";
+import { POST } from "@/app/api/markets/prefill/route";
+import { mapAnalysisToPrefill } from "@/app/api/markets/prefill/prefill-mapping";
 import { auth } from "@/lib/auth";
 import { extractFileText } from "@/lib/pdf";
 import { analyzeContract } from "@/lib/llm";
@@ -70,6 +71,16 @@ describe("POST /api/markets/prefill", () => {
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body).toEqual({ extractedChars: 0, prefill: null });
+    expect(analyzeContract).not.toHaveBeenCalled();
+  });
+
+  it("renvoie 500 avec message explicite si l'extraction échoue techniquement", async () => {
+    vi.mocked(extractFileText).mockRejectedValue(new Error("pdf-parse cassé"));
+    const res = await POST(fileRequest());
+    const body = await res.json();
+    expect(res.status).toBe(500);
+    expect(body.error).toContain("Échec technique de l'extraction");
+    expect(body.error).toContain("pdf-parse cassé");
     expect(analyzeContract).not.toHaveBeenCalled();
   });
 

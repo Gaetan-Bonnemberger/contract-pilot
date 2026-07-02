@@ -2,8 +2,12 @@
  * pdf.ts — Extraction de texte depuis un buffer PDF
  *
  * Utilise pdf-parse (v2) pour lire le contenu textuel d'un PDF.
- * En cas d'échec (PDF scanné, protégé, etc.) retourne une chaîne vide
- * afin de ne pas bloquer le reste de l'analyse.
+ * Distinction importante :
+ *   - un PDF réellement sans texte (scanné) : getText() réussit et renvoie ""
+ *     -> on retourne "" (signal « pas de texte », pas une erreur) ;
+ *   - un échec TECHNIQUE (module cassé, PDF corrompu/protégé, worker pdf.js) :
+ *     getText() lève -> on RELANCE l'erreur pour ne pas la confondre avec un
+ *     PDF scanné (sinon l'UI affiche « Document scanné » à tort).
  *
  * pdf-parse v2 expose une CLASSE `PDFParse` (et non plus une fonction
  * appelable comme en v1). L'ancien `require("pdf-parse")(buffer)` renvoyait
@@ -13,7 +17,8 @@
 
 /**
  * Extrait le texte brut d'un buffer PDF.
- * @returns Le texte extrait, ou "" si l'extraction echoue.
+ * @returns Le texte extrait, ou "" si le PDF ne contient pas de texte (scanné).
+ * @throws  En cas d'échec technique de l'extraction (module, worker, PDF corrompu).
  */
 export async function extractPdfText(buffer: Buffer): Promise<string> {
   try {
@@ -38,8 +43,12 @@ export async function extractPdfText(buffer: Buffer): Promise<string> {
       }
     }
   } catch (err) {
-    console.error("[extractPdfText] Echec de l'extraction PDF :", err);
-    return "";
+    // Échec technique : on log et on RELANCE (ne pas retomber en "" qui serait
+    // interprété comme un PDF scanné).
+    console.error("[extractPdfText] Echec technique de l'extraction PDF :", err);
+    throw err instanceof Error
+      ? err
+      : new Error("Echec technique de l'extraction PDF");
   }
 }
 
