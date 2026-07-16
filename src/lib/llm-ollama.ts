@@ -30,9 +30,9 @@ const extractedKpiSchema = z.object({
   kpiType: z.string(),
   unit: z.string(),
   frequency: z.string(),
-  greenThreshold: z.number().optional(),
-  orangeThreshold: z.number().optional(),
-  redThreshold: z.number().optional(),
+  greenThreshold: z.number().nullable().optional(),
+  orangeThreshold: z.number().nullable().optional(),
+  redThreshold: z.number().nullable().optional(),
 });
 
 const extractedObligationSchema = z.object({
@@ -62,10 +62,10 @@ const extractedBonusSchema = z.object({
 });
 
 const financialSummarySchema = z.object({
-  firmAmountHt: z.number().optional(),
-  optionAmountHt: z.number().optional(),
-  contractDurationMonths: z.number().optional(),
-  renewalCount: z.number().optional(),
+  firmAmountHt: z.number().nullable().optional(),
+  optionAmountHt: z.number().nullable().optional(),
+  contractDurationMonths: z.number().nullable().optional(),
+  renewalCount: z.number().nullable().optional(),
   priceRevisionIndex: z.string().optional(),
 });
 
@@ -113,6 +113,8 @@ export async function analyzeContractOllama(
   const inputBudgetTokens = numCtx - numPredict - 900;
   const maxChars = Math.max(1000, inputBudgetTokens * 3);
   const prompt = buildPrompt(text, marketContext, maxChars);
+
+  console.log(`[ollama] texte envoyé : ${prompt.length} caractères (num_ctx=${numCtx})`);
 
   let response: Response;
   try {

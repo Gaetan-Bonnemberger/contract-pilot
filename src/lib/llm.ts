@@ -31,9 +31,9 @@ export interface ExtractedKpi {
   kpiType: string;
   unit: string;
   frequency: string;
-  greenThreshold?: number;
-  orangeThreshold?: number;
-  redThreshold?: number;
+  greenThreshold?: number | null;
+  orangeThreshold?: number | null;
+  redThreshold?: number | null;
 }
 
 export interface ExtractedObligation {
@@ -79,10 +79,10 @@ export interface AnalysisResult {
 
   // Données financières de synthèse
   financialSummary: {
-    firmAmountHt?: number;
-    optionAmountHt?: number;
-    contractDurationMonths?: number;
-    renewalCount?: number;
+    firmAmountHt?: number | null;
+    optionAmountHt?: number | null;
+    contractDurationMonths?: number | null;
+    renewalCount?: number | null;
     priceRevisionIndex?: string;
   };
 
@@ -196,13 +196,15 @@ INSTRUCTIONS :
 - Extrais TOUS les KPI mesurables mentionnés (taux, notes, délais chiffrés)
 - Identifie toutes les obligations avec leurs preuves attendues
 - Note les références d'articles précises (ex: "Art. 34.6", "§ 3.2", "Article 12")
-- Pour les montants : convertis toujours en nombre (ex: "2 500" et non "2 500 €")
-- Si une information est absente du document, omets le champ (ne pas inventer)
+- Pour les montants : renvoie un nombre sans symbole ni espace (pas de "€", pas d'espace de milliers)
+- Si une information est absente du document, ne l'invente jamais : mets null pour les champs numériques, "" pour les champs texte.
 - marketIdentification est OBLIGATOIRE dans ta réponse : renvoie TOUJOURS cet objet. Ces informations (code/référence du marché, maître d'ouvrage/client, objet du marché, lot/zone, nature des travaux) figurent quasiment toujours en PREMIÈRE PAGE du document (en-tête, objet du marché, maître d'ouvrage) : extrais-les EN PRIORITÉ. Mets une chaîne vide "" pour un champ UNIQUEMENT si l'information est réellement absente du document — sans jamais l'inventer.
 - Réponds UNIQUEMENT en JSON valide, sans texte avant ni après
 
 DOCUMENT :
 ${truncated}
+
+RÈGLE ABSOLUE — les valeurs du modèle JSON ci-dessous sont des EXEMPLES DE FORMAT, jamais des réponses. Tout champ dont l'information n'est pas explicitement écrite dans le document doit valoir null. N'invente jamais un montant, une durée ou un nombre de reconductions.
 
 Réponds avec ce JSON exact (respecte strictement les types) :
 {
@@ -235,9 +237,9 @@ Réponds avec ce JSON exact (respecte strictement les types) :
       "kpiType": "Contractuel|Interne",
       "unit": "% ou /20 ou jours ou €...",
       "frequency": "Quotidien|Hebdo|Mensuel|Trimestriel|Annuel|Par chantier",
-      "greenThreshold": 100,
-      "orangeThreshold": 95,
-      "redThreshold": 90
+      "greenThreshold": null,
+      "orangeThreshold": null,
+      "redThreshold": null
     }
   ],
   "extractedObligations": [
@@ -270,10 +272,10 @@ Réponds avec ce JSON exact (respecte strictement les types) :
     }
   ],
   "financialSummary": {
-    "firmAmountHt": 220000,
-    "optionAmountHt": 110000,
-    "contractDurationMonths": 48,
-    "renewalCount": 0,
+    "firmAmountHt": null,
+    "optionAmountHt": null,
+    "contractDurationMonths": null,
+    "renewalCount": null,
     "priceRevisionIndex": "ex: Index BT annuel"
   }
 }`;

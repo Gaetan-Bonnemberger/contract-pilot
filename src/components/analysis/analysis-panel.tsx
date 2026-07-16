@@ -401,7 +401,7 @@ function AnalysisPreview({ result }: { result: AnalysisResult }) {
                 { label: "Montant ferme HT",   value: result.financialSummary.firmAmountHt   ? `${Number(result.financialSummary.firmAmountHt).toLocaleString("fr-FR")} €` : null },
                 { label: "Options HT",          value: result.financialSummary.optionAmountHt ? `${Number(result.financialSummary.optionAmountHt).toLocaleString("fr-FR")} €` : null },
                 { label: "Durée",               value: result.financialSummary.contractDurationMonths ? `${result.financialSummary.contractDurationMonths} mois` : null },
-                { label: "Reconductions",       value: result.financialSummary.renewalCount !== undefined ? `${result.financialSummary.renewalCount} fois` : null },
+                { label: "Reconductions",       value: result.financialSummary.renewalCount != null ? `${result.financialSummary.renewalCount} fois` : null },
                 { label: "Révision de prix",    value: result.financialSummary.priceRevisionIndex ?? null },
               ].map(({ label, value }) =>
                 value ? (
