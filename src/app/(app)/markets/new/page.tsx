@@ -13,13 +13,26 @@ import Link from "next/link";
 import { detectMarketDocType, type MarketDocType } from "@/lib/market-doc-type";
 import { mergePrefills, type PrefillResult } from "@/app/api/markets/prefill/prefill-mapping";
 
-type FileStatus = { name: string; docType: MarketDocType; status: "pending" | "running" | "ok" | "skipped" };
+type FileStatus = {
+  name: string;
+  docType: MarketDocType;
+  status: "pending" | "running" | "ok" | "skipped" | "excluded";
+};
 
 const DOC_TYPE_LABELS: Record<MarketDocType, string> = {
   ccap: "CCAP", cctp: "CCTP", rc: "RC", ae: "Acte d'engagement", bpu: "BPU", dqe: "DQE", unknown: "Document",
 };
-const STATUS_ICON: Record<FileStatus["status"], string> = { pending: "⏳", running: "🔄", ok: "✅", skipped: "⏭️" };
-const STATUS_LABEL: Record<FileStatus["status"], string> = { pending: "en attente", running: "en cours…", ok: "ok", skipped: "ignoré" };
+const STATUS_ICON: Record<FileStatus["status"], string> = {
+  pending: "⏳", running: "🔄", ok: "✅", skipped: "⏭️", excluded: "🚫",
+};
+const STATUS_LABEL: Record<FileStatus["status"], string> = {
+  pending: "en attente", running: "en cours…", ok: "ok", skipped: "ignoré",
+  excluded: "ignoré — pièce technique, pas de donnée contractuelle",
+};
+
+/** Pièces jamais envoyées au LLM : aucune donnée contractuelle exploitable,
+ *  et volume qui dépasse le budget de contexte. Listées, mais non analysées. */
+const EXCLUDED_DOC_TYPES: MarketDocType[] = ["cctp"];
 
 export default function NewMarketPage() {
   const router = useRouter();
@@ -65,16 +78,32 @@ export default function NewMarketPage() {
   async function handlePrefillFiles(fileList: File[]) {
     if (prefilling || fileList.length === 0) return;
     setPrefilling(true);
-    const statuses: FileStatus[] = fileList.map((f) => ({
-      name: f.name, docType: detectMarketDocType(f.name), status: "pending",
-    }));
+    const statuses: FileStatus[] = fileList.map((f): FileStatus => {
+      const docType = detectMarketDocType(f.name);
+      return {
+        name: f.name,
+        docType,
+        status: EXCLUDED_DOC_TYPES.includes(docType) ? "excluded" : "pending",
+      };
+    });
     setFileStatuses(statuses);
 
+    // Seules les pièces non exclues sont analysées ; le total de progression les ignore.
+    const analyzable = fileList
+      .map((file, index) => ({ file, index }))
+      .filter(({ index }) => statuses[index].status !== "excluded");
+
+    if (analyzable.length === 0) {
+      setPrefilling(false);
+      toast.warning("Aucune pièce à analyser : les CCTP sont exclus (pièce technique, sans donnée contractuelle).");
+      return;
+    }
+
     const results: PrefillResult[] = [];
-    for (let i = 0; i < fileList.length; i++) {          // SÉQUENTIEL (un seul modèle Ollama)
-      const f = fileList[i];
+    for (let k = 0; k < analyzable.length; k++) {        // SÉQUENTIEL (un seul modèle Ollama)
+      const { file: f, index: i } = analyzable[k];
       const dt = statuses[i].docType;
-      setProgress({ current: i + 1, total: fileList.length, label: dt !== "unknown" ? DOC_TYPE_LABELS[dt] : f.name });
+      setProgress({ current: k + 1, total: analyzable.length, label: dt !== "unknown" ? DOC_TYPE_LABELS[dt] : f.name });
       setFileStatuses((prev) => prev.map((s, j) => (j === i ? { ...s, status: "running" } : s)));
 
       let result: PrefillResult | null = null;
